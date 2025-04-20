@@ -1,0 +1,2501 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backpack Trades</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a; /* Fundo mais escuro */
+            color: #e0e0e0; /* Texto mais claro */
+        }
+        .card {
+            background-color: #2c2c2c; /* Cor do card */
+            border: none;
+        }
+        .bg-dark-card {
+            background-color: #333333 !important; /* Cor ligeiramente diferente para cards de resumo */
+        }
+        .table {
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+        }
+        .table th,
+        .table td {
+            border-color: #444;
+            vertical-align: middle;
+        }
+        .thead-dark th {
+            background-color: #333;
+            color: #e0e0e0;
+            border-color: #444;
+        }
+        .text-muted {
+            color: #aaa !important;
+        }
+        .positive {
+            color: #2ecc71 !important; /* Verde */
+        }
+        .negative {
+            color: #ff7675 !important; /* Vermelho claro padrão */
+        }
+        /* NOVO: Vermelho mais escuro */
+        .negative-darker {
+            color: #c0392b !important; /* Vermelho mais escuro */
+        }
+        .modal-content {
+            background-color: #2c2c2c;
+            color: #e0e0e0;
+        }
+        .modal-header,
+        .modal-footer {
+            border-color: #444;
+        }
+        .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        .form-control,
+        .form-select {
+            background-color: #333;
+            color: #e0e0e0;
+            border-color: #444;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            background-color: #444;
+            color: #e0e0e0;
+            border-color: #555;
+            box-shadow: none;
+        }
+        .tab-content {
+            border: 1px solid #444;
+            border-top: none;
+            padding: 15px;
+            background-color: #2c2c2c;
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+        .nav-tabs .nav-link {
+            color: #aaa;
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+            border-bottom: none;
+        }
+        .nav-tabs .nav-link.active {
+            color: #e0e0e0;
+            background-color: #2c2c2c;
+            border-color: #444;
+            border-bottom: 1px solid #2c2c2c; /* Para conectar com o content */
+        }
+        .card-title {
+            font-size: 0.9rem; /* Ajuste opcional */
+            color: #aaa;
+        }
+        .card-text {
+            margin-bottom: 0.1rem; /* Reduz espaço abaixo do número */
+        }
+        .card-body small {
+             display: block; /* Garante que o small fique abaixo */
+             font-size: 0.8rem;
+             color: #aaa;
+        }
+
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class='bx bx-line-chart'></i>
+                Backpack Trading Tracker
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{{ url_for('index') }}">Trading</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('cryptocurrencies') }}">Cryptomoedas</a>
+                    </li>
+                </ul>
+                <div class="ms-auto">
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('logout') }}" class="btn btn-outline-secondary">Logout</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <!-- Stats Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <!-- Card Total de Trades -->
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Total de Trades</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1" id="totalTrades">0</h2> <!-- VOLTOU para h2 -->
+                    </div>
+                </div>
+                 <!-- Card Volume Total -->
+                <div class="card bg-dark text-white mt-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Volume Total</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1" id="totalVolume">$0.00</h2> <!-- VOLTOU para h2 -->
+                    </div>
+                </div>
+                <!-- Card Taxas Totais -->
+                <div class="card bg-dark text-white mt-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Taxas Totais</h5> <!-- VOLTOU para h5 -->
+                        <!-- VOLTOU para h2 e usa classe .negative -->
+                        <h2 class="card-text mt-1 negative" id="totalFees">$0.00</h2> 
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <!-- Card PnL Total -->
+                <div class="card bg-dark text-white mb-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">PnL Total</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1" id="totalPnL">$0.00</h2> <!-- VOLTOU para h2 -->
+                    </div>
+                </div>
+                <!-- Card PnL + Taxas -->
+                <div class="card bg-dark text-white mb-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">PnL + Taxas</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1" id="pnlPlusFees">$0.00</h2> <!-- VOLTOU para h2 -->
+                    </div>
+                </div>
+                <!-- Card Balanço Estimado -->
+                <div class="card bg-dark text-white"> 
+                     <div class="card-body text-center"> 
+                         <h5 class="card-title">Balanço Estimado</h5> <!-- VOLTOU para h5 -->
+                         <h2 class="card-text mt-1" id="estimatedBalanceValue">$0.00</h2> <!-- VOLTOU para h2 -->
+                     </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                 <!-- Card Melhor Trade -->
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Melhor Trade</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1 positive" id="bestTrade">$0.00</h2> <!-- VOLTOU para h2 -->
+                        <small id="bestTradeSymbol">-</small>
+                    </div>
+                </div>
+                 <!-- Card Moeda com Maior Lucro -->
+                <div class="card bg-dark text-white mt-2">
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Moeda com Maior Lucro</h5> <!-- VOLTOU para h5 -->
+                        <h2 class="card-text mt-1 positive" id="bestSymbolPnL">$0.00</h2> <!-- VOLTOU para h2 -->
+                        <small id="bestSymbol">-</small>
+                    </div>
+                </div>
+                <!-- NOVO Card Trades Vencedores -->
+                <div class="card bg-dark text-white mt-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Trades Vencedores</h5>
+                        <h2 class="card-text mt-1" id="winningTradesCount">0</h2> 
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <!-- Card Pior Trade -->
+                <div class="card bg-dark text-white">
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Pior Trade</h5> <!-- VOLTOU para h5 -->
+                        <!-- USA .negative-darker -->
+                        <h2 class="card-text mt-1 negative-darker" id="worstTrade">$0.00</h2> 
+                        <small id="worstTradeSymbol">-</small>
+                    </div>
+                </div>
+                 <!-- Card Moeda com Maior Prejuízo -->
+                <div class="card bg-dark text-white mt-2">
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Moeda com Maior Prejuízo</h5> <!-- VOLTOU para h5 -->
+                         <!-- USA .negative-darker -->
+                        <h2 class="card-text mt-1 negative-darker" id="worstSymbolPnL">$0.00</h2>
+                        <small id="worstSymbol">-</small>
+                    </div>
+                </div>
+                <!-- NOVO Card Trades Perdedores -->
+                <div class="card bg-dark text-white mt-2"> 
+                    <div class="card-body text-center"> 
+                        <h5 class="card-title">Trades Perdedores</h5>
+                        <h2 class="card-text mt-1 negative-darker" id="losingTradesCount">0</h2> 
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO RESUMO DIARIO -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Resumo Diario</h5> <!-- TITULO DA SEÇÃO MANTIDO h5 -->
+                        <div class="row text-center">
+                            <!-- Card PnL do Dia Bruto -->
+                            <div class="col-md-4"> <!-- MUDADO PARA col-md-4 -->
+                                <div class="card bg-dark-card mb-3">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-subtitle mb-2 text-muted">PnL do Dia Bruto</h6>
+                                        <h4 class="card-text mt-1" id="dailyPnL">$0.00</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card Taxas do Dia -->
+                            <div class="col-md-4"> <!-- MUDADO PARA col-md-4 -->
+                                <div class="card bg-dark-card mb-3">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-subtitle mb-2 text-muted">Taxas do Dia</h6>
+                                        <h4 class="card-text mt-1 negative" id="dailyFees">$0.00</h4> 
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card PnL do Dia Líquido -->
+                            <div class="col-md-4"> <!-- MUDADO PARA col-md-4 -->
+                                <div class="card bg-dark-card mb-3">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-subtitle mb-2 text-muted">PnL do Dia Líquido</h6>
+                                        <h4 class="card-text mt-1" id="dailyNetPnl">$0.00</h4> 
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Card Taxas Totais (REMOVIDO) -->
+                        </div> <!-- Fim da Row do Resumo Diario -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Pizza -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Distribuição de PnL por Moeda</h5>
+                        <div class="chart-container" style="position: relative; height:300px;">
+                            <canvas id="pnlPieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulário Adicionar Nova Operação -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Adicionar Nova Operação</h5>
+                <form id="tradeForm">
+                    <div class="row g-3 align-items-end mb-3"> <!-- row for inputs + button -->
+                        <!-- MOVER O SELETOR TIER PARA CÁ -->
+                        <div class="col-md-1"> <!-- TIER -->
+                             <label for="tierSelect" class="form-label">TIER *</label> <!-- Adicionado * -->
+                             <select class="form-select bg-dark text-white" id="tierSelect" required> <!-- Adicionado required -->
+                                 <option value="" disabled selected>Selecione</option> <!-- Opção padrão -->
+                                 <option value="1">1</option> <!-- Removido selected -->
+                                 <option value="2">2</option>
+                                 <option value="3">3</option>
+                                 <option value="4">4</option>
+                                 <option value="5">5</option>
+                                 <option value="6">6</option> <!-- Removido selected -->
+                                 <option value="VIP1">VIP1</option>
+                                 <option value="VIP2">VIP2</option>
+                                 <option value="VIP3">VIP3</option>
+                                 <option value="VIP4">VIP4</option>
+                                 <option value="VIP5">VIP5</option>
+                             </select>
+                         </div>
+                        <div class="col-md-2"> <!-- Símbolo -->
+                            <label for="symbol" class="form-label">Símbolo *</label>
+                            <input type="text" class="form-control bg-dark text-white" id="symbol" name="symbol" required placeholder="Ex: SOL">
+                        </div>
+                        <div class="col-md-1"> <!-- Tipo -->
+                            <label for="side" class="form-label">Tipo</label>
+                            <select class="form-select bg-dark text-white" id="side" name="side">
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
+                        </div>
+                         <div class="col-md-1"> <!-- Tamanho -->
+                            <label for="size" class="form-label">Tamanho *</label>
+                            <input type="number" class="form-control bg-dark text-white" id="size" name="size" step="any" required>
+                        </div>
+                        <div class="col-md-1"> <!-- Entrada -->
+                            <label for="entryPrice" class="form-label">Entrada</label>
+                            <input type="number" step="any" class="form-control bg-dark text-white" id="entryPrice" name="entry_price">
+                        </div>
+                        <div class="col-md-1"> <!-- Status -->
+                            <label for="tradeStatus" class="form-label">Status *</label>
+                            <select class="form-select bg-dark text-white" id="tradeStatus" name="status" required>
+                                <option value="aberto" selected>Aberto</option>
+                                <option value="fechado">Fechado</option>
+                            </select>
+                        </div>
+                        <div class="col-md-1"> <!-- Saída -->
+                            <label for="exitPrice" class="form-label">Saída</label>
+                            <input type="number" step="any" class="form-control bg-dark text-white" id="exitPrice" name="exit_price">
+                        </div>
+                        <div class="col-md-2"> <!-- PnL -->
+                            <label for="pnl" class="form-label">PnL <small>(calc)</small></label>
+                            <input type="number" step="any" class="form-control bg-dark text-white" id="pnl" name="pnl">
+                        </div>
+                         <div class="col-md-2"> <!-- Botão -->
+                            <button type="submit" class="btn btn-primary w-100">Adicionar Trade</button>
+                        </div>
+                    </div>
+                    <!-- LINHA APENAS PARA A NOTA -->
+                    <div class="row">
+                         <div class="col-12">
+                            <small class="text-muted">* Campos obrigatórios | PnL é calculado para trades fechados</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Abas de Navegação (Navs and Tabs) -->
+        <ul class="nav nav-tabs mb-3" id="pills-tab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pills-balance-tab" data-bs-toggle="pill" data-bs-target="#pills-balance" type="button" role="tab" aria-controls="pills-balance" aria-selected="true">Balanço</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-positions-tab" data-bs-toggle="pill" data-bs-target="#pills-positions" type="button" role="tab" aria-controls="pills-positions" aria-selected="false">Posições Abertas</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-history-tab" data-bs-toggle="pill" data-bs-target="#pills-history" type="button" role="tab" aria-controls="pills-history" aria-selected="false">Histórico de Trades</button>
+            </li>
+            <!-- NOVA ABA PNL DIARIO -->
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pills-daily-pnl-tab" data-bs-toggle="pill" data-bs-target="#pills-daily-pnl" type="button" role="tab" aria-controls="pills-daily-pnl" aria-selected="false">PNL diario</button>
+            </li>
+        </ul>
+
+        <!-- Conteúdo das Abas -->
+        <div class="tab-content" id="pills-tabContent">
+            <!-- Aba Balanço -->
+            <div class="tab-pane fade show active" id="pills-balance" role="tabpanel" aria-labelledby="pills-balance-tab" tabindex="0">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Balanço Spot</h5>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 25%;">Ativo</th>
+                                        <th class="text-end">Quantidade Total</th>
+                                        <th class="text-end">Valor (USD)</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="balanceTableBody">
+                                    <!-- Conteúdo do balanço será carregado aqui -->
+                                    <tr><td colspan="4" class="text-center text-muted">Carregando balanço...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aba Posições Abertas -->
+            <div class="tab-pane fade" id="pills-positions" role="tabpanel" aria-labelledby="pills-positions-tab" tabindex="0">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title visually-hidden">Posições Abertas</h5> <!-- Título pode ser oculto visualmente -->
+                        <div class="table-responsive">
+                            <table class="table">
+                                <!-- Cabeçalho da tabela de posições CORRIGIDO -->
+                                <thead>
+                                    <tr>
+                                        <!-- <th>Data/Hora</th> --> <!-- REMOVIDO -->
+                                        <th>Símbolo</th>
+                                        <th>Lado</th>
+                                        <th>Tamanho</th>
+                                        <th>Preço Entrada</th>
+                                        <th>Preço Atual</th>
+                                        <th>PnL Não Realizado</th>
+                                        <th>TP / SL</th> <!-- Coluna Única -->
+                                        <th>Valor</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="openPositionsTableBody">
+                                    <!-- Conteúdo carregado por loadOpenPositions() -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aba Histórico de Trades -->
+            <div class="tab-pane fade" id="pills-history" role="tabpanel" aria-labelledby="pills-history-tab" tabindex="0">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title visually-hidden">Histórico de Trades</h5> <!-- Título pode ser oculto visualmente -->
+                        <div class="table-responsive">
+                             <table class="table">
+                                <!-- Cabeçalho da tabela de histórico -->
+                                <thead>
+                                    <tr>
+                                        <th>Data/Hora</th>
+                                        <th>Símbolo</th>
+                                        <th>Tipo</th>
+                                        <th>Entrada</th>
+                                        <th>Saída</th>
+                                        <th>Tamanho</th>
+                                        <th>Valor</th>
+                                        <!-- Coluna Taxas removida -->
+                                        <th>PnL</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradesTableBody">
+                                    <!-- Linha de carregamento inicial -->
+                                    <tr><td colspan="8" class="text-center text-muted">Carregando histórico...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOVO PAINEL PNL DIARIO -->
+            <div class="tab-pane fade" id="pills-daily-pnl" role="tabpanel" aria-labelledby="pills-daily-pnl-tab" tabindex="0">
+                <div class="card bg-dark text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Histórico de PNL Líquido Diário</h5>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>PnL Líquido</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyPnlHistoryTableBody"> <!-- ID para preenchimento -->
+                                    <!-- Linhas serão adicionadas via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="editTradeModal" tabindex="-1" aria-labelledby="editTradeModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTradeModalLabel">Editar Trade</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTradeForm">
+                        <input type="hidden" id="editTradeId">
+                        <div class="mb-3">
+                            <label class="form-label">Símbolo *</label>
+                            <input type="text" class="form-control" id="editSymbol" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo</label>
+                            <select class="form-select" id="editSide">
+                                <option value="long">Long</option>
+                                <option value="short">Short</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tamanho</label>
+                            <input type="number" step="0.000001" class="form-control" id="editSize">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Preço de Entrada</label>
+                            <input type="number" step="0.0001" class="form-control" id="editEntryPrice">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Preço de Saída</label>
+                            <input type="number" step="0.0001" class="form-control" id="editExitPrice">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">PnL *</label>
+                            <input type="number" step="0.01" class="form-control" id="editPnl" required>
+                        </div>
+                        <!-- NOVO CAMPO TAXA NO MODAL -->
+                        <div class="mb-3">
+                            <label class="form-label">Taxa</label>
+                            <input type="number" step="any" class="form-control" id="editFees" placeholder="0.00">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Fechar Posição -->
+    <div class="modal fade" id="closePositionModal" tabindex="-1" aria-labelledby="closePositionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="closePositionModalLabel">Fechar Posição</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="closePositionForm">
+                        <input type="hidden" id="closePositionTradeId">
+                        <input type="hidden" id="closePositionSize">
+                        <input type="hidden" id="closePositionSide">
+                        <input type="hidden" id="closePositionEntryPriceRaw"> <!-- NOVO: Para guardar valor numérico -->
+
+                        <div class="mb-3">
+                            <label class="form-label">Símbolo</label>
+                            <input type="text" class="form-control" id="closePositionSymbol" readonly disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Preço de Entrada</label>
+                            <input type="text" class="form-control" id="closePositionEntryPrice" readonly disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="closePositionExitPrice" class="form-label">Preço de Saída *</label>
+                            <input type="number" step="0.0001" class="form-control" id="closePositionExitPrice" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">PnL Calculado</label>
+                            <input type="text" class="form-control" id="closePositionCalculatedPnl" readonly disabled>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="confirmCloseBtn">Confirmar Fechamento</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal de Depósito -->
+    <div class="modal fade" id="depositModal" tabindex="-1" aria-labelledby="depositModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="depositModalLabel">Realizar Depósito</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="depositForm">
+                        <input type="hidden" id="depositSymbol">
+                        <div class="mb-3">
+                            <label for="depositAmount" class="form-label">Quantidade a Depositar (<span id="depositSymbolDisplay"></span>)</label>
+                            <input type="number" step="any" class="form-control" id="depositAmount" required placeholder="0.00">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="confirmDepositBtn">Confirmar Depósito</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal de Saque -->
+    <div class="modal fade" id="withdrawModal" tabindex="-1" aria-labelledby="withdrawModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="withdrawModalLabel">Realizar Saque</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="withdrawForm">
+                        <input type="hidden" id="withdrawSymbol">
+                        <div class="mb-3">
+                            <label for="withdrawAmount" class="form-label">Quantidade a Sacar (<span id="withdrawSymbolDisplay"></span>)</label>
+                            <input type="number" step="any" class="form-control" id="withdrawAmount" required placeholder="0.00">
+                            <small id="withdrawMaxAmount" class="form-text text-muted"></small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-warning" id="confirmWithdrawBtn">Confirmar Saque</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal de Editar Posição (TP/SL) -->
+    <div class="modal fade" id="editPositionModal" tabindex="-1" aria-labelledby="editPositionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editPositionModalLabel">Editar Posição (<span id="editPositionSymbolDisplay"></span>)</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editPositionForm">
+                        <input type="hidden" id="editPositionTradeId">
+                        <!-- Campos não editáveis exibidos para informação -->
+                        <div class="mb-3 row">
+                            <label class="col-sm-4 col-form-label">Entrada:</label>
+                            <div class="col-sm-8">
+                                <input type="text" readonly class="form-control-plaintext text-white" id="editPositionEntryPriceDisplay">
+                            </div>
+                        </div>
+                        <div class="mb-3 row">
+                            <label class="col-sm-4 col-form-label">Tamanho:</label>
+                            <div class="col-sm-8">
+                                <input type="text" readonly class="form-control-plaintext text-white" id="editPositionSizeDisplay">
+                            </div>
+                        </div>
+                         <div class="mb-3 row">
+                            <label class="col-sm-4 col-form-label">Lado:</label>
+                            <div class="col-sm-8">
+                                <input type="text" readonly class="form-control-plaintext text-white" id="editPositionSideDisplay">
+                            </div>
+                        </div>
+                        <hr>
+                        <!-- Campos Editáveis -->
+                        <div class="mb-3">
+                            <label for="editPositionTakeProfit" class="form-label">Take Profit (Preço)</label>
+                            <input type="number" step="any" class="form-control" id="editPositionTakeProfit" placeholder="(opcional)">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editPositionStopLoss" class="form-label">Stop Loss (Preço)</label>
+                            <input type="number" step="any" class="form-control" id="editPositionStopLoss" placeholder="(opcional)">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirmEditPositionBtn">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Variável global para o gráfico
+        let pnlPieChart = null;
+
+        // Mapeamento Símbolo -> ID API (precisa ser mantido atualizado)
+        const symbolToIdMap = {
+            'btc': 'bitcoin',
+            'eth': 'ethereum',
+            'bnb': 'binancecoin',
+            'xrp': 'ripple',
+            'sol': 'solana',
+            's': 'sonic-3',
+            'hype': 'hyperliquid',
+            'sui': 'sui',
+            'link': 'chainlink',
+            'jup': 'jupiter-exchange-solana',
+            'bera': 'berachain-bera',
+            'doge': 'dogecoin',
+            'trump': 'official-trump',
+            'avax': 'avalanche-2',
+            'ena': 'ethena',
+            'arb': 'arbitrum',
+            'wif': 'dogwifcoin',
+            'ltc': 'litecoin',
+            'ondo': 'ondo-finance',
+            'dot': 'polkadot',
+            'ada': 'cardano',
+            'kaito': 'kaito',
+            'aave': 'aave',
+            'fartcoin': 'fartcoin',
+            'ip': 'story-2',
+            'kmno': 'kamino',
+            'usdt': 'tether',
+            'bonk': 'bonk',
+            'usdc': 'usd-coin'
+        };
+
+        // Variáveis globais para cálculo do Balanço Estimado
+        let globalTotalSpotValue = 0;
+        let globalUnrealizedPnl = 0;
+        let globalTotalPnl = 0;
+        let globalTotalFees = 0;
+        let globalDailyGrossPnl = 0; // <-- ADICIONADO
+        let globalDailyFees = 0;     // <-- ADICIONADO
+
+        // Variável para controlar se o histórico PNL diário já foi carregado
+        let dailyPnlHistoryLoaded = false;
+
+        // --- NOVA FUNÇÃO: Carregar Histórico PNL Líquido Diário ---
+        async function loadDailyPnlHistory() {
+            console.log("[PNL History DEBUG] Iniciando loadDailyPnlHistory...");
+            try {
+                const response = await fetch('/api/daily_pnl_history');
+                if (!response.ok) {
+                    throw new Error(`Erro na API de histórico: ${response.statusText}`);
+                }
+                const historyData = await response.json();
+                console.log("[PNL History DEBUG] Dados recebidos:", historyData);
+
+                const tableBody = document.getElementById('dailyPnlHistoryTableBody');
+                tableBody.innerHTML = ''; // Limpa tabela antes de preencher
+
+                if (historyData.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="2" class="text-center">Nenhum histórico de PNL diário encontrado.</td></tr>';
+                    return;
+                }
+
+                historyData.forEach(item => {
+                    const row = tableBody.insertRow();
+                    const dateCell = row.insertCell();
+                    const pnlCell = row.insertCell();
+
+                    // Formata Data (ex: 15/04/2025)
+                    try {
+                        const dateObj = new Date(item.date + 'T00:00:00'); // Adiciona hora para evitar problemas de TZ
+                        dateCell.textContent = dateObj.toLocaleDateString('pt-BR');
+                    } catch (e) {
+                        console.error("Erro ao formatar data:", item.date, e);
+                        dateCell.textContent = item.date; // Fallback
+                    }
+
+                    // Formata PnL Líquido com cor
+                    const netPnl = item.net_pnl;
+                    pnlCell.textContent = formatCurrency(netPnl);
+                    if (netPnl > 0) {
+                        pnlCell.classList.add('positive');
+                    } else if (netPnl < 0) {
+                        pnlCell.classList.add('negative');
+                    }
+                });
+                dailyPnlHistoryLoaded = true; // Marca como carregado
+
+            } catch (error) {
+                console.error('Erro ao carregar histórico de PNL diário:', error);
+                const tableBody = document.getElementById('dailyPnlHistoryTableBody');
+                tableBody.innerHTML = `<tr><td colspan="2" class="text-center text-danger">Falha ao carregar histórico: ${error.message}</td></tr>`;
+            }
+        }
+
+        // --- Função para formatar moeda (reutilizada)
+        function formatCurrency(value) {
+            return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+        }
+
+        // Variável global para monitoramento TP/SL e ID do Timer
+        let positionsToMonitor = [];
+        let tpSlCheckIntervalId = null;
+        const TP_SL_CHECK_INTERVAL_MS = 30000; // 30 segundos
+
+        // Add event listener for the form submission
+        document.getElementById('tradeForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const tradeData = Object.fromEntries(formData.entries());
+
+            // Adiciona o TIER selecionado aos dados a serem enviados
+            const tierSelectElement = document.getElementById('tierSelect');
+            if (tierSelectElement) {
+                tradeData.tier = tierSelectElement.value;
+            }
+
+            // Trata campos numéricos que podem vir vazios
+            tradeData.size = parseFloat(tradeData.size) || null;
+            tradeData.entry_price = parseFloat(tradeData.entry_price) || null;
+            tradeData.exit_price = parseFloat(tradeData.exit_price) || null;
+            tradeData.pnl = parseFloat(tradeData.pnl) || null;
+            tradeData.take_profit = parseFloat(tradeData.take_profit) || null;
+            tradeData.stop_loss = parseFloat(tradeData.stop_loss) || null;
+            // Não precisa mais ler/enviar 'fees' manual
+
+            // ... (Remove campos null)
+
+            console.log("Enviando dados do trade (com tier):", JSON.stringify(tradeData));
+            // ... (Restante do try/catch para POST)
+        });
+
+        // Função para buscar e exibir estatísticas
+        async function loadStats() {
+            try {
+                // REMOVER LEITURA DO TIER AQUI
+                // const tierSelectElement = document.getElementById('tierSelect');
+                // const selectedTier = tierSelectElement ? tierSelectElement.value : '1'; // Padrão HTML agora é 1
+                // console.log(`[Load Stats] Carregando estatísticas...`);
+
+                // Chama a API SEM o parâmetro tier
+                const response = await fetch(`/api/statistics`);
+                console.log("Stats API Response Status:", response.status);
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar estatísticas');
+                }
+                const stats = await response.json();
+                console.log("Dados recebidos de /api/statistics:", stats);
+
+                // Verifica se os dados esperados existem
+                if (!stats || typeof stats !== 'object') {
+                    console.error("Formato de stats inválido recebido da API.")
+                    // Aqui poderíamos zerar os campos no HTML se desejado
+                    return;
+                }
+
+                document.getElementById('totalTrades').textContent = stats.total_trades !== undefined ? stats.total_trades : '0';
+
+                const totalPnlValue = (stats.total_pnl !== undefined && !isNaN(stats.total_pnl)) ? stats.total_pnl : 0;
+                document.getElementById('totalPnL').textContent = totalPnlValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                // Define a cor baseada no PnL Total
+                const totalPnlElement = document.getElementById('totalPnL');
+                if (totalPnlValue > 0) {
+                    totalPnlElement.classList.remove('negative-darker');
+                    totalPnlElement.classList.add('positive');
+                } else if (totalPnlValue < 0) {
+                    totalPnlElement.classList.remove('positive');
+                    totalPnlElement.classList.add('negative-darker'); // <-- USA negative-darker AQUI
+                } else {
+                    totalPnlElement.classList.remove('positive', 'negative-darker');
+                }
+                globalTotalPnl = totalPnlValue; // <-- Atualiza variável global
+
+                // Acessa best_trade e worst_trade como objetos
+                const bestTradePnl = (stats.best_trade && stats.best_trade.pnl !== undefined && !isNaN(stats.best_trade.pnl)) ? stats.best_trade.pnl : 0;
+                const bestTradeSymbol = (stats.best_trade && stats.best_trade.symbol) ? stats.best_trade.symbol : '-';
+                document.getElementById('bestTrade').textContent = bestTradePnl.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                document.getElementById('bestTradeSymbol').textContent = bestTradeSymbol;
+
+                const worstTradePnl = (stats.worst_trade && stats.worst_trade.pnl !== undefined && !isNaN(stats.worst_trade.pnl)) ? stats.worst_trade.pnl : 0;
+                const worstTradeSymbol = (stats.worst_trade && stats.worst_trade.symbol) ? stats.worst_trade.symbol : '-';
+                document.getElementById('worstTrade').textContent = worstTradePnl.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                document.getElementById('worstTradeSymbol').textContent = worstTradeSymbol;
+
+                const bestSymbolPnlValue = (stats.best_symbol_pnl !== undefined && !isNaN(stats.best_symbol_pnl)) ? stats.best_symbol_pnl : 0;
+                document.getElementById('bestSymbolPnL').textContent = bestSymbolPnlValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                document.getElementById('bestSymbol').textContent = stats.best_symbol || '-';
+
+                const worstSymbolPnlValue = (stats.worst_symbol_pnl !== undefined && !isNaN(stats.worst_symbol_pnl)) ? stats.worst_symbol_pnl : 0;
+                document.getElementById('worstSymbolPnL').textContent = worstSymbolPnlValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                document.getElementById('worstSymbol').textContent = stats.worst_symbol || '-';
+
+                // --- Atualiza o card de Taxas Totais e a variável global ---
+                const totalFeesValue = (stats.total_fees !== undefined && !isNaN(stats.total_fees)) ? stats.total_fees : 0;
+                const totalFeesElement = document.getElementById('totalFees');
+                // ADICIONA SINAL DE MENOS (-) ANTES DO VALOR
+                totalFeesElement.textContent = '-' + totalFeesValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                totalFeesElement.className = 'card-text mt-1 text-danger'; // Mantém text-danger
+                globalTotalFees = totalFeesValue; // <-- ATUALIZA VARIÁVEL GLOBAL
+                calculateAndDisplayPnlPlusFees(); // <-- CHAMA AQUI APÓS ATUALIZAR VARIÁVEIS GLOBAIS
+                // --------------------------------------------------------
+
+                 updateEstimatedBalance(); // <-- Chama atualização
+
+                 // --- RE-ADICIONADO: Chamada para atualizar gráfico de pizza --- 
+                 if (stats.symbol_pnl) {
+                    console.log("Atualizando gráfico de pizza com dados:", stats.symbol_pnl);
+                    updatePnlPieChart(stats.symbol_pnl);
+                 } else {
+                     console.warn("Dados symbol_pnl não encontrados na resposta da API para o gráfico.");
+                     // Opcional: Limpar o gráfico se não houver dados
+                     if (pnlPieChart) { pnlPieChart.destroy(); pnlPieChart = null; }
+                 }
+                 // -----------------------------------------------------------
+
+                 // --- NOVO: Atualiza o card de Trades Vencedores --- 
+                 const winningTradesElement = document.getElementById('winningTradesCount');
+                 if (winningTradesElement) {
+                     winningTradesElement.textContent = stats.winning_trades_count !== undefined ? stats.winning_trades_count : '0';
+                     // Define a classe para a cor verde (positivo)
+                     winningTradesElement.className = 'card-text mt-1 positive'; // Garante a classe correta
+                 } else {
+                     console.warn("Elemento #winningTradesCount não encontrado.");
+                 }
+                 // -----------------------------------------------------
+
+                 // --- NOVO: Atualiza o card de Trades Perdedores ---
+                 const losingTradesElement = document.getElementById('losingTradesCount');
+                 if (losingTradesElement) {
+                     losingTradesElement.textContent = stats.losing_trades_count !== undefined ? stats.losing_trades_count : '0';
+                 } else {
+                     console.warn("Elemento #losingTradesCount não encontrado.");
+                 }
+                 // -----------------------------------------------------
+
+            } catch (error) {
+                console.error('Erro CRÍTICO ao carregar estatísticas:', error);
+                // Reseta variáveis globais em caso de erro para evitar balanço incorreto
+                globalTotalPnl = 0;
+                globalTotalFees = 0;
+                updateEstimatedBalance();
+                calculateAndDisplayPnlPlusFees(); // <-- CHAMA AQUI TAMBÉM (com valores zerados)
+            }
+        }
+
+        // --- Função para Calcular e Exibir PnL Total + Taxas Totais (NOVA) ---
+        function calculateAndDisplayPnlPlusFees() {
+            console.log(`[Pnl+Fees Calc] Tentando calcular. PnL Total = ${globalTotalPnl}, Taxas Totais = ${globalTotalFees}`);
+            // CORREÇÃO: Subtrai as taxas em vez de somar
+            const pnlMinusFees = globalTotalPnl - globalTotalFees; 
+            const element = document.getElementById('pnlPlusFees');
+
+            if (!element) {
+                console.error("Elemento #pnlPlusFees não encontrado!");
+                return;
+            }
+
+            element.textContent = formatCurrency(pnlMinusFees);
+            // Muda a cor baseado no valor (normalmente será negativo ou zero)
+            if (pnlMinusFees > 0) {
+                element.classList.remove('text-danger');
+                element.classList.add('text-success');
+            } else if (pnlMinusFees < 0) {
+                element.classList.remove('text-success');
+                element.classList.add('text-danger');
+            } else {
+                element.classList.remove('text-success', 'text-danger');
+            }
+            console.log(`[Pnl+Fees Calc] Calculado e Exibido: ${pnlMinusFees}`);
+        }
+        // -----------------------------------------------------------------
+
+        // --- Event Listener para Mudança no Seletor de TIER ---
+        const tierSelect = document.getElementById('tierSelect');
+        if (tierSelect) {
+            tierSelect.addEventListener('change', () => {
+                console.log(`[TIER Change] Novo TIER selecionado: ${tierSelect.value}. Recarregando estatísticas...`);
+                // Salva no localStorage (Opcional, Passo 3)
+                // localStorage.setItem('selectedTier', tierSelect.value);
+                loadStats(); // Recarrega as estatísticas, que usarão o novo valor
+            });
+        }
+        // ------------------------------------------------------
+
+        // Função para atualizar o gráfico de pizza
+        function updatePnlPieChart(symbolPnl) {
+            const ctx = document.getElementById('pnlPieChart').getContext('2d');
+            
+            // Destruir o gráfico anterior se existir
+            if (pnlPieChart) {
+                pnlPieChart.destroy();
+            }
+            
+            // Preparar dados para o gráfico
+            const labels = [];
+            const data = [];
+            const backgroundColors = [];
+            const borderColors = [];
+            
+            // Cores para o gráfico
+            const colors = [
+                '#00b894', '#ff7675', '#0099ff', '#ffcc00', '#ff6b6b', 
+                '#4ecdc4', '#ff9f43', '#6c5ce7', '#a8e6cf', '#dcedc1'
+            ];
+            
+            // Ordenar por valor absoluto do PnL
+            const sortedSymbols = Object.entries(symbolPnl)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+            
+            // Adicionar dados ao gráfico
+            sortedSymbols.forEach((entry, index) => {
+                const symbol = entry[0];
+                const pnl = entry[1];
+                
+                labels.push(symbol);
+                data.push(pnl);
+                
+                // Usar cores diferentes para cada moeda
+                const colorIndex = index % colors.length;
+                backgroundColors.push(colors[colorIndex]);
+                borderColors.push('#242526'); // Cor da borda igual ao fundo do card
+            });
+            
+            // Criar o gráfico
+            pnlPieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => {
+                                            const meta = chart.getDatasetMeta(0);
+                                            const value = data.datasets[0].data[i];
+                                            const sign = value >= 0 ? '+' : '-';
+                                            return {
+                                                text: `${label}: ${sign}$${Math.abs(value).toFixed(2)}`,
+                                                fillStyle: data.datasets[0].backgroundColor[i],
+                                                hidden: isNaN(data.datasets[0].data[i]) || meta.data[i].hidden,
+                                                index: i,
+                                                fontColor: value >= 0 ? '#00b894' : '#ff7675'
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                },
+                                color: '#e4e6eb',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    const sign = value >= 0 ? '+' : '-';
+                                    return `${label}: ${sign}$${Math.abs(value).toFixed(2)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Função para deletar trade
+        async function deleteTrade(tradeId) {
+            console.log('Tentando deletar trade:', tradeId);
+            
+            try {
+                const response = await fetch(`/api/trades/${tradeId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Status da resposta:', response.status);
+                const responseData = await response.text();
+                console.log('Resposta:', responseData);
+                
+                if (response.ok) {
+                    console.log('Trade deletado com sucesso');
+                    await loadTrades();
+                    await loadStats();
+                    await displayTotalVolume();
+                    await loadDailyPnL();
+                    await loadDailyFees(); // <<< CHAMADA JÁ EXISTE AQUI (VERIFICADO)
+                    await loadOpenPositions();
+                } else {
+                    console.error('Erro ao deletar trade:', responseData);
+                    alert('Erro ao excluir trade');
+                }
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao excluir trade');
+            }
+        }
+
+        // Função para editar trade
+        function editTrade(tradeId) {
+            console.log('Editando trade:', tradeId);
+            
+            // Buscar dados do trade
+            fetch(`/api/trades/${tradeId}`)
+                .then(response => response.json())
+                .then(trade => {
+                    document.getElementById('editTradeId').value = trade.id;
+                    document.getElementById('editSymbol').value = trade.symbol;
+                    document.getElementById('editSide').value = trade.side || 'long';
+                    document.getElementById('editSize').value = trade.size || '';
+                    document.getElementById('editEntryPrice').value = trade.entry_price || '';
+                    document.getElementById('editExitPrice').value = trade.exit_price || '';
+                    document.getElementById('editPnl').value = trade.pnl;
+                    // Preenche o novo campo de taxa
+                    document.getElementById('editFees').value = trade.fees !== undefined && trade.fees !== null ? trade.fees : ''; // Usa '' se for null/undefined
+
+                    // Abrir modal
+                    const editModal = new bootstrap.Modal(document.getElementById('editTradeModal'));
+                    editModal.show();
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar dados do trade:', error);
+                    alert('Erro ao carregar dados do trade');
+                });
+        }
+
+        // Função para calcular PnL no modal de edição
+        function calculateEditPnL() {
+            const entryPrice = parseFloat(document.getElementById('editEntryPrice').value);
+            const exitPrice = parseFloat(document.getElementById('editExitPrice').value);
+            const size = parseFloat(document.getElementById('editSize').value) || 1;
+            const side = document.getElementById('editSide').value;
+            
+            if (entryPrice && exitPrice) {
+                let pnl;
+                if (side === 'long') {
+                    pnl = (exitPrice - entryPrice) * size;
+                } else {
+                    pnl = (entryPrice - exitPrice) * size;
+                }
+                document.getElementById('editPnl').value = pnl.toFixed(2);
+            }
+        }
+
+        // Adicionar event listeners para cálculo automático no modal
+        document.getElementById('editEntryPrice').addEventListener('input', calculateEditPnL);
+        document.getElementById('editExitPrice').addEventListener('input', calculateEditPnL);
+        document.getElementById('editSize').addEventListener('input', calculateEditPnL);
+        document.getElementById('editSide').addEventListener('change', calculateEditPnL);
+
+        // Salvar edição
+        document.getElementById('saveEditBtn').addEventListener('click', async () => {
+            const tradeId = document.getElementById('editTradeId').value;
+
+            const trade = {
+                symbol: document.getElementById('editSymbol').value,
+                pnl: document.getElementById('editPnl').value
+            };
+
+            // Adiciona campos opcionais apenas se tiverem valor
+            const entryPrice = document.getElementById('editEntryPrice').value;
+            const exitPrice = document.getElementById('editExitPrice').value;
+            const size = document.getElementById('editSize').value;
+            const side = document.getElementById('editSide').value;
+
+            if (entryPrice) trade.entry_price = entryPrice;
+            if (exitPrice) trade.exit_price = exitPrice;
+            if (size) trade.size = size;
+            if (side) trade.side = side;
+            
+            try {
+                const response = await fetch(`/api/trades/${tradeId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(trade)
+                });
+
+                if (response.ok) {
+                    // Fechar modal
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editTradeModal'));
+                    editModal.hide();
+                    
+                    // Atualizar tabela e estatísticas
+                    await loadTrades();
+                    await loadStats();
+                    await loadDailyPnL();
+                    await loadDailyFees(); // <<< ADICIONAR CHAMADA AQUI
+                    await loadOpenPositions(); // Recarregar posições caso a edição afete TP/SL
+                    calculatePnL(); // Reseta estado do form
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Erro ao editar trade');
+                }
+            } catch (error) {
+                alert('Erro ao editar trade');
+            }
+        });
+
+        // Função para carregar trades
+        async function loadTrades() {
+            console.log("[History DEBUG] Iniciando loadTrades...");
+            const tbody = document.getElementById('tradesTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Carregando histórico...</td></tr>'; // Feedback inicial - COLSPAN 8
+
+            try {
+                const response = await fetch('/api/trades');
+                console.log("[History DEBUG] Response Status:", response.status);
+
+                const rawResponseText = await response.text(); // Lê como texto primeiro
+                console.log("[History DEBUG] Raw Response Text:", rawResponseText);
+
+                if (!response.ok) {
+                    console.error("[History DEBUG] Erro na API:", response.status, rawResponseText);
+                    throw new Error(`Erro ${response.status} ao buscar histórico.`);
+                }
+
+                const trades = JSON.parse(rawResponseText); // Faz parse do texto
+                console.log("[History DEBUG] Parsed Trades Data:", trades);
+
+                tbody.innerHTML = ''; // Limpa a tabela após sucesso
+
+                // Verificação de array vazio
+                if (!trades || trades.length === 0) {
+                    console.log("[History DEBUG] Nenhum trade encontrado no histórico.");
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Nenhum trade no histórico.</td></tr>'; // COLSPAN 8
+                    return;
+                }
+
+                console.log(`[History DEBUG] Iniciando loop para ${trades.length} trades.`);
+                trades.reverse().forEach((trade, index) => {
+                    console.log(`[History DEBUG] Processando trade ${index + 1}:`, trade);
+                    try {
+                        const date = trade.timestamp ? new Date(trade.timestamp).toLocaleString('pt-BR') : 'Data Inválida';
+                        const symbol = trade.symbol || 'Símbolo Inválido';
+                        const side = trade.side || 'desconhecido';
+                        const entryPrice = trade.entry_price !== null && trade.entry_price !== undefined ? Number(trade.entry_price) : null;
+                        const exitPrice = trade.exit_price !== null && trade.exit_price !== undefined ? `$${Number(trade.exit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '-';
+                        const size = trade.size !== null && trade.size !== undefined ? Number(trade.size) : null;
+                        const pnl = (trade.pnl !== null && trade.pnl !== undefined && !isNaN(trade.pnl)) ? Number(trade.pnl) : 0;
+                        const pnlClass = pnl >= 0 ? 'positive' : 'negative';
+                        const pnlDisplay = `$${pnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                        // --- CÁLCULO DO VALOR DE ENTRADA ---
+                        let valorEntrada = null;
+                        if (size !== null && entryPrice !== null) {
+                            valorEntrada = size * entryPrice;
+                        }
+                        const valorEntradaDisplay = valorEntrada !== null ? `$${valorEntrada.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-';
+                        // --- FIM CÁLCULO ---
+
+                        // --- FORMATAÇÃO DAS TAXAS ---
+                        // CORRIGIDO: Ler 'calculated_fee' em vez de 'fees'
+                        const fees = (trade.calculated_fee !== null && trade.calculated_fee !== undefined && !isNaN(trade.calculated_fee)) ? Number(trade.calculated_fee) : null; 
+                        const feesDisplay = fees !== null ? `-$${fees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '-'; // Adiciona sinal negativo
+                        // --- FIM FORMATAÇÃO TAXAS ---
+
+                        // Formata entry price para exibição APÓS o cálculo do valor
+                        const entryPriceDisplay = entryPrice !== null ? `$${entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '-';
+
+                        console.log(`[History DEBUG] Trade ${index + 1} - Processed values: date=${date}, symbol=${symbol}, pnl=${pnl}, pnlDisplay=${pnlDisplay}, valorEntrada=${valorEntradaDisplay}`);
+
+                        const row = document.createElement('tr');
+                        row.className = 'trade-row';
+
+                        // Constrói o HTML da linha de forma segura
+                        row.innerHTML = `
+                            <td>${date}</td>
+                            <td class="symbol">${symbol}</td>
+                            <td><div class="trade-type ${side.toLowerCase()}">${side.toUpperCase()}</div></td>
+                            <td>${entryPriceDisplay}</td>
+                            <td>${exitPrice}</td>
+                            <td>${size !== null ? size : '-'}</td> <!-- Exibe tamanho formatado ou '-' -->
+                            <td>${valorEntradaDisplay}</td> <!-- CÉLULA VALOR ENTRADA -->
+                            <td></td> <!-- Placeholder for PnL cell -->
+                            <td></td> <!-- Placeholder for Actions cell -->
+                        `;
+                        // Preenche a célula PnL separadamente para maior segurança
+                        const pnlCell = row.cells[7]; // Índice 7 é a 8ª célula (PnL)
+                        pnlCell.className = pnlClass;
+                        pnlCell.textContent = pnlDisplay; // Define o texto do PnL
+
+                        // Preenche a célula de Ações (índice 8)
+                        const actionsCell = row.cells[8];
+                        actionsCell.classList.add('text-end'); // Alinha botões à direita
+                        actionsCell.innerHTML = `
+                           <button class="btn btn-sm btn-info ms-1" onclick="editTrade('${trade.id}')" title="Editar Trade">
+                                <i class="bi bi-pencil-square"></i> <!-- ÍCONE CORRIGIDO -->
+                            </button>
+                            <button class="btn btn-sm btn-danger ms-1" onclick="deleteTrade('${trade.id}')" title="Excluir Trade">
+                                <i class="bi bi-trash3"></i> <!-- ÍCONE CORRIGIDO -->
+                            </button>
+                        `;
+
+                        tbody.appendChild(row);
+                        console.log(`[History DEBUG] Trade ${index + 1} adicionado à tabela.`);
+                    } catch (renderError) {
+                        console.error(`[History DEBUG] Erro ao renderizar trade ${index + 1} (ID: ${trade?.id}):`, renderError, trade);
+                        // Adiciona uma linha de erro para indicar qual trade falhou
+                        const errorRow = document.createElement('tr');
+                        errorRow.innerHTML = `<td colspan="8" class="text-danger text-center">Erro ao renderizar trade ID: ${trade?.id || 'desconhecido'}</td>`;
+                        tbody.appendChild(errorRow);
+                    }
+                });
+                console.log("[History DEBUG] Loop de trades concluído.");
+
+            } catch (error) {
+                console.error("[History DEBUG] Erro GERAL em loadTrades:", error);
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Erro ao carregar histórico. Verifique o console.</td></tr>'; // COLSPAN 8
+            }
+        }
+
+        // Função para buscar e exibir o volume total
+        async function displayTotalVolume() {
+            const volumeElement = document.getElementById('totalVolume');
+            try {
+                const response = await fetch('/api/total_volume');
+                console.log("Total Volume API Response Status:", response.status); // Log Status
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar volume total');
+                }
+                const data = await response.json();
+                console.log("Volume data from API:", data); // Log Raw Data
+
+                // Verifica se data.total_volume é um número válido, senão usa 0
+                const volumeValue = (typeof data.total_volume === 'number' && !isNaN(data.total_volume)) ? data.total_volume : 0;
+                console.log("Processed volumeValue:", volumeValue); // Log Processed Value
+
+                volumeElement.textContent = volumeValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            } catch (error) {
+                console.error('Erro ao exibir volume total:', error);
+                volumeElement.textContent = '$0.00'; // Exibe $0.00 em caso de erro
+            }
+        }
+
+        // Função para adicionar trade (atualizada para lidar com Status)
+        document.getElementById('tradeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const status = document.getElementById('tradeStatus').value;
+            const entryPrice = document.getElementById('entryPrice').value;
+            const exitPriceField = document.getElementById('exitPrice');
+            const size = document.getElementById('size').value;
+            let pnl = document.getElementById('pnl').value;
+
+            // Validações básicas
+            if (status === 'aberto' && !entryPrice) {
+                alert('Preço de Entrada é obrigatório para posições abertas.');
+                return;
+            }
+            if (status === 'fechado' && (!entryPrice || !exitPriceField.value || !pnl)) {
+                alert('Preço de Entrada, Saída e PnL são obrigatórios para trades fechados.');
+                return;
+            }
+
+            const trade = {
+                symbol: document.getElementById('symbol').value,
+                side: document.getElementById('side').value,
+                size: size || null, // Envia null se vazio
+                entry_price: entryPrice || null // Envia null se vazio
+            };
+
+            if (status === 'aberto') {
+                trade.exit_price = null; // Garante que saída seja null para trades abertos
+                trade.pnl = 0; // PnL inicial para trade aberto é 0 (não realizado)
+            } else { // Fechado
+                trade.exit_price = exitPriceField.value;
+                trade.pnl = pnl;
+            }
+
+            console.log("Enviando trade:", trade); // Debug
+
+            try {
+                const response = await fetch('/api/trades', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(trade)
+                });
+
+                if (response.ok) {
+                    document.getElementById('tradeForm').reset();
+                    await loadStats();
+                    await loadTrades();
+                    await displayTotalVolume();
+                    await loadDailyPnL();
+                    await loadDailyFees(); // <-- ADICIONADO AQUI
+                    await loadOpenPositions();
+                    calculatePnL(); // Reseta estado do form
+                } else {
+                    const error = await response.json();
+                    console.error("Erro do servidor:", error);
+                    alert(error.error || 'Erro ao adicionar trade');
+                }
+            } catch (error) {
+                console.error("Erro de rede:", error);
+                alert('Erro de rede ao adicionar trade');
+            }
+        });
+
+        // Atualiza cálculo de PnL para considerar o status
+        function calculatePnL() {
+            console.log("calculatePnL triggered"); // Log 1: Função chamada
+            const status = document.getElementById('tradeStatus').value;
+            const entryPriceField = document.getElementById('entryPrice');
+            const exitPriceField = document.getElementById('exitPrice');
+            const pnlField = document.getElementById('pnl');
+            const sizeField = document.getElementById('size');
+            const sideField = document.getElementById('side');
+
+            const entryPrice = parseFloat(entryPriceField.value);
+            const exitPrice = parseFloat(exitPriceField.value);
+            const size = parseFloat(sizeField.value) || 1; // Default to 1 if empty/invalid
+            const side = sideField.value;
+
+            console.log(`Status: ${status}, Entry: ${entryPrice}, Exit: ${exitPrice}, Size: ${size}, Side: ${side}`); // Log 2: Valores lidos
+
+            if (status === 'aberto') {
+                console.log("Status é Aberto, limpando/desabilitando PnL e Saída"); // Log 3a
+                pnlField.value = '';
+                pnlField.disabled = true;
+                exitPriceField.value = '';
+                exitPriceField.disabled = true;
+            } else { // Fechado
+                console.log("Status é Fechado, habilitando PnL e Saída"); // Log 3b
+                pnlField.disabled = false;
+                exitPriceField.disabled = false;
+                // Verifica se ambos os preços são números válidos
+                if (entryPrice && exitPrice && !isNaN(entryPrice) && !isNaN(exitPrice)) {
+                    console.log("Calculando PnL..."); // Log 4: Entrou no cálculo
+                    let pnl;
+                    if (side === 'long') {
+                        pnl = (exitPrice - entryPrice) * size;
+                    } else {
+                        pnl = (entryPrice - exitPrice) * size;
+                    }
+                    console.log(`PnL Calculado: ${pnl}`); // Log 5: Valor calculado
+                    pnlField.value = pnl.toFixed(2);
+                    console.log(`pnlField.value definido como: ${pnlField.value}`); // Log 6: Valor definido
+                } else {
+                    console.log("Entrada ou Saída inválida/vazia, limpando PnL"); // Log 7: Condição de cálculo não atendida
+                    pnlField.value = '';
+                }
+            }
+        }
+
+        // Adiciona listener para o novo campo Status
+        document.getElementById('tradeStatus').addEventListener('change', calculatePnL);
+
+        // ADICIONA OS LISTENERS FALTANTES PARA OS OUTROS CAMPOS
+        document.getElementById('entryPrice').addEventListener('input', calculatePnL);
+        document.getElementById('exitPrice').addEventListener('input', calculatePnL);
+        document.getElementById('size').addEventListener('input', calculatePnL);
+        document.getElementById('side').addEventListener('change', calculatePnL);
+
+        // Chama calculatePnL inicialmente para setar o estado
+        calculatePnL();
+
+        // Função para buscar preços atuais de uma lista de IDs (MODIFICADA para usar backend)
+        async function fetchCurrentPrices(apiIds) {
+            if (!apiIds || apiIds.length === 0) return {};
+            const idsString = apiIds.join(',');
+            // Chama a nova rota do backend
+            const url = `/api/market_data?ids=${idsString}`; 
+            console.log(`[fetchCurrentPrices] Chamando backend: ${url}`);
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Erro ${response.status} ao buscar dados de mercado do backend`);
+                }
+                // A resposta do backend já está no formato { id: { usd: price, image: url } }
+                const marketData = await response.json(); 
+                console.log("[fetchCurrentPrices] Dados recebidos do backend:", marketData);
+                // Retorna apenas os dados de preço para compatibilidade com o uso anterior em loadOpenPositions
+                const pricesOnly = {};
+                for (const id in marketData) {
+                    pricesOnly[id] = { usd: marketData[id]?.usd };
+                }
+                return pricesOnly; 
+            } catch (error) {
+                console.error("[fetchCurrentPrices] Erro ao buscar preços do backend:", error);
+                return {}; // Retorna objeto vazio em caso de erro
+            }
+        }
+
+        // Função para carregar e exibir posições abertas
+        async function loadOpenPositions() {
+            console.log("[Positions DEBUG] Iniciando loadOpenPositions..."); // Log inicial
+            const tbody = document.getElementById('openPositionsTableBody');
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Carregando posições...</td></tr>'; // Colspan 9
+            let totalUnrealizedPnl = 0;
+            positionsToMonitor = []; // Limpa monitoramento
+
+            try {
+                const response = await fetch('/api/positions');
+                console.log("[Positions DEBUG] API /api/positions Status:", response.status);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("[Positions DEBUG] Erro ao buscar /api/positions:", response.status, errorText);
+                    throw new Error(`Erro ${response.status} ao buscar posições abertas.`);
+                }
+                const openPositions = await response.json();
+                console.log("[Positions DEBUG] Dados recebidos de /api/positions:", openPositions);
+                // <<< ADICIONAR LOG AQUI PARA VER OS DADOS BRUTOS
+                console.log("[Positions DEBUG] Raw API Response:", JSON.stringify(openPositions)); // Log para verificar duplicação na origem
+
+                tbody.innerHTML = ''; // Limpa "Carregando..."
+
+                if (openPositions.length === 0) {
+                    console.log("[Positions DEBUG] Nenhuma posição aberta encontrada.");
+                    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted">Nenhuma posição aberta.</td></tr>';
+                    globalUnrealizedPnl = 0;
+                    updateEstimatedBalance();
+                    stopTpSlMonitoring();
+                    return;
+                }
+
+                // Coleta IDs para buscar preços atuais
+                const apiIdsToFetch = [...new Set(openPositions.map(pos => symbolToIdMap[pos.symbol.toLowerCase()]).filter(id => id))];
+                console.log("[Positions DEBUG] API IDs para buscar preços:", apiIdsToFetch);
+
+                const currentPrices = await fetchCurrentPrices(apiIdsToFetch);
+                console.log("[Positions DEBUG] Preços atuais recebidos:", currentPrices);
+
+                 console.log(`[Positions DEBUG] Iniciando loop para ${openPositions.length} posições.`);
+                openPositions.forEach((pos, index) => {
+                    // Log inicial para esta iteração
+                    console.log(`[Positions DEBUG] Processando índice ${index}, Posição Raw:`, JSON.stringify(pos));
+                    try {
+                        // --- Validações e Valores Padrão ---
+                        const tradeId = pos?.id || 'ID_DESCONHECIDO'; // Usa ID para logs
+                        const symbol = pos?.symbol || 'SÍMBOLO_ERR';
+                        const side = pos?.side || 'LADO_ERR';
+                        // Garante que size e entry_price sejam números ou null
+                        const size = (pos?.size !== null && pos.size !== undefined && !isNaN(Number(pos.size))) ? Number(pos.size) : null;
+                        const entryPrice = (pos?.entry_price !== null && pos.entry_price !== undefined && !isNaN(Number(pos.entry_price))) ? Number(pos.entry_price) : null;
+                        const takeProfit = (pos?.take_profit !== null && pos.take_profit !== undefined && !isNaN(Number(pos.take_profit))) ? Number(pos.take_profit) : null;
+                        const stopLoss = (pos?.stop_loss !== null && pos.stop_loss !== undefined && !isNaN(Number(pos.stop_loss))) ? Number(pos.stop_loss) : null;
+
+                        console.log(`[Positions DEBUG ${tradeId}] Dados Validados: symbol=${symbol}, side=${side}, size=${size}, entryPrice=${entryPrice}, tp=${takeProfit}, sl=${stopLoss}`);
+
+                        // Guarda as posições que têm TP ou SL definidos para monitoramento (com dados validados)
+                        if (takeProfit !== null || stopLoss !== null) {
+                             // Verifica se os dados essenciais para monitoramento estão ok
+                            if (symbol !== 'SÍMBOLO_ERR' && side !== 'LADO_ERR' && tradeId !== 'ID_DESCONHECIDO') {
+                                const apiIdForMonitor = symbolToIdMap[symbol.toLowerCase()];
+                                if (apiIdForMonitor) {
+                                    positionsToMonitor.push({
+                                        id: tradeId,
+                                        symbol: symbol,
+                                        apiId: apiIdForMonitor,
+                                        side: side,
+                                        take_profit: takeProfit,
+                                        stop_loss: stopLoss
+                                    });
+                                    console.log(`[Positions DEBUG ${tradeId}] Adicionada ao monitoramento.`);
+                                } else {
+                                     console.warn(`[Positions DEBUG ${tradeId}] Não adicionada ao monitoramento (sem API ID).`);
+                                }
+                            } else {
+                                 console.warn(`[Positions DEBUG ${tradeId}] Não adicionada ao monitoramento (dados inválidos).`);
+                            }
+                        }
+
+                        // Busca preço atual (se possível)
+                        const apiId = symbolToIdMap[symbol.toLowerCase()];
+                        const currentPrice = apiId ? currentPrices[apiId]?.usd : null;
+                        console.log(`[Positions DEBUG ${tradeId}] API ID=${apiId}, Preço Atual=${currentPrice}`);
+
+                        // Calcula PnL e Valor (com segurança)
+                        let unrealizedPnl = null; // Inicializa como null
+                        let positionValue = null; // Inicializa como null
+
+                        // Só calcula se todos os dados necessários são números válidos
+                        if (currentPrice !== null && size !== null && entryPrice !== null) {
+                            const priceDiff = currentPrice - entryPrice;
+                            unrealizedPnl = side === 'long' ? priceDiff * size : -priceDiff * size;
+                            positionValue = currentPrice * size;
+                            // Acumula apenas se o cálculo foi bem-sucedido
+                            if (!isNaN(unrealizedPnl)) {
+                                totalUnrealizedPnl += unrealizedPnl;
+                            } else {
+                                console.warn(`[Positions DEBUG ${tradeId}] PnL Não Realizado resultou em NaN.`);
+                                unrealizedPnl = null; // Reseta se NaN
+                            }
+                             if (isNaN(positionValue)) {
+                                console.warn(`[Positions DEBUG ${tradeId}] Valor da Posição resultou em NaN.`);
+                                positionValue = null; // Reseta se NaN
+                            }
+                        } else {
+                            console.warn(`[Positions DEBUG ${tradeId}] Não foi possível calcular PnL/Valor (dados ausentes: currentPrice=${currentPrice}, size=${size}, entryPrice=${entryPrice}).`);
+                        }
+                         console.log(`[Positions DEBUG ${tradeId}] PnL Não Realizado=${unrealizedPnl}, Valor=${positionValue}`);
+
+                        // --- Formatação Segura para Exibição ---
+                        const formatCurrency = (value) => {
+                             if (value === null || value === undefined || isNaN(Number(value))) return '-';
+                             return Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                        };
+                        const formatNumber = (value, minDigits = 0, maxDigits = 8) => {
+                             if (value === null || value === undefined || isNaN(Number(value))) return '-';
+                             return Number(value).toLocaleString('en-US', { minimumFractionDigits: minDigits, maximumFractionDigits: maxDigits });
+                        };
+
+                        const entryPriceDisplay = formatCurrency(entryPrice);
+                        const currentPriceDisplay = formatCurrency(currentPrice);
+                        const unrealizedPnlDisplay = formatCurrency(unrealizedPnl);
+                        const positionValueDisplay = formatCurrency(positionValue);
+                        const sizeDisplay = formatNumber(size); // Formata tamanho também
+                        const tpDisplay = formatCurrency(takeProfit);
+                        const slDisplay = formatCurrency(stopLoss);
+                        const sideDisplay = side === 'long' ? 'Long' : (side === 'short' ? 'Short' : 'Inválido');
+                        const sideClass = side === 'long' ? 'long' : (side === 'short' ? 'short' : 'unknown');
+                        const pnlClass = (unrealizedPnl !== null && !isNaN(unrealizedPnl)) ? (unrealizedPnl >= 0 ? 'positive' : 'negative') : '';
+
+                        console.log(`[Positions DEBUG ${tradeId}] Valores para Renderizar: Entry=${entryPriceDisplay}, Current=${currentPriceDisplay}, PnL=${unrealizedPnlDisplay}, Value=${positionValueDisplay}, Size=${sizeDisplay}, TP=${tpDisplay}, SL=${slDisplay}, Side=${sideDisplay}`);
+
+                        // --- Construção da Linha HTML ---
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-trade-id', tradeId); // Usa ID validado
+
+                        row.innerHTML = `
+                            <td><span class="symbol">${symbol}</span></td>
+                            <td><span class="trade-type ${sideClass}">${sideDisplay}</span></td>
+                            <td>${sizeDisplay}</td>
+                            <td>${entryPriceDisplay}</td>
+                            <td>${currentPriceDisplay}</td>
+                            <td class="${pnlClass}">${unrealizedPnlDisplay}</td>
+                            <td>
+                                ${tpDisplay} / ${slDisplay}
+                                <div class="float-end">
+                                    <button class="btn btn-sm btn-info ms-1 ${tradeId === 'ID_DESCONHECIDO' ? 'disabled' : ''}" onclick="openEditPositionModal('${tradeId}')" title="Editar TP/SL">
+                                        <i class="bi bi-pencil-square"></i> <!-- ÍCONE CORRIGIDO -->
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                               ${positionValueDisplay}
+                            </td>
+                             <td> <!-- Coluna Ações Separada -->
+                               <div class="float-end">
+                                    <button class="btn btn-sm btn-warning ms-2 ${tradeId === 'ID_DESCONHECIDO' || entryPrice === null || size === null || side === 'LADO_ERR' ? 'disabled' : ''}"
+                                            onclick="openClosePositionModal('${tradeId}', '${symbol}', ${entryPrice}, ${size}, '${side}')"
+                                            title="Fechar Posição">
+                                        <i class="bi bi-check-circle"></i> Fechar <!-- ÍCONE CORRIGIDO -->
+                                    </button>
+                               </div>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                        console.log(`[Positions DEBUG ${tradeId}] Linha adicionada à tabela.`);
+                    } catch (renderError) {
+                        // O catch agora deve ser menos provável de ser atingido por erros de formatação/dados
+                        const errorTradeId = pos?.id || 'ID DESCONHECIDO NO ERRO';
+                        console.error(`[Positions DEBUG] ERRO CATASTRÓFICO ao renderizar posição (ID: ${errorTradeId}):`, renderError, pos);
+                        const errorRow = document.createElement('tr');
+                        errorRow.innerHTML = `<td colspan="9" class="text-danger text-center">Erro CRÍTICO ao renderizar posição ID: ${errorTradeId}. Ver console.</td>`;
+                        tbody.appendChild(errorRow);
+                    }
+                });
+
+                globalUnrealizedPnl = totalUnrealizedPnl;
+                updateEstimatedBalance();
+                startTpSlMonitoring(); // Inicia/reinicia o monitoramento após carregar posições
+
+            } catch (error) {
+                console.error('[Positions DEBUG] Erro GERAL em loadOpenPositions:', error);
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger">Erro ao carregar posições. Verifique o console.</td></tr>';
+                 globalUnrealizedPnl = 0;
+                 updateEstimatedBalance();
+                 stopTpSlMonitoring(); // Para o monitoramento em caso de erro
+            }
+        }
+
+        // Função para INICIAR o fechamento da posição (abre o modal)
+        function openClosePositionModal(tradeId, symbol, entryPrice, size, side) {
+            console.log(`Abrindo modal para fechar: ID=${tradeId}, Sym=${symbol}, Entry=${entryPrice}, Size=${size}, Side=${side}`);
+            if (!closePositionModalInstance) {
+                console.error("Instância do modal de fechamento não encontrada!");
+                return;
+            }
+
+            // Preencher o modal
+            document.getElementById('closePositionTradeId').value = tradeId;
+            document.getElementById('closePositionSymbol').value = symbol;
+            document.getElementById('closePositionEntryPrice').value = entryPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' }); // Formata para exibição
+            document.getElementById('closePositionEntryPriceRaw').value = entryPrice; // <-- Guarda valor numérico
+            document.getElementById('closePositionSize').value = size; // Guarda valor numérico original
+            document.getElementById('closePositionSide').value = side;
+            document.getElementById('closePositionExitPrice').value = ''; // Limpa campo de saída
+            document.getElementById('closePositionCalculatedPnl').value = ''; // Limpa PnL calculado
+
+            // Abrir o modal
+            closePositionModalInstance.show();
+        }
+
+        // Função para calcular PnL dinamicamente no modal de fechamento
+        function calculateClosePnl() {
+            // Lê o valor NUMÉRICO do input oculto
+            const entryPrice = parseFloat(document.getElementById('closePositionEntryPriceRaw').value);
+            const exitPrice = parseFloat(document.getElementById('closePositionExitPrice').value);
+            const size = parseFloat(document.getElementById('closePositionSize').value);
+            const side = document.getElementById('closePositionSide').value;
+            const pnlField = document.getElementById('closePositionCalculatedPnl');
+
+            if (!isNaN(entryPrice) && !isNaN(exitPrice) && !isNaN(size)) {
+                 let pnl;
+                 if (side.toLowerCase() === 'long') {
+                     pnl = (exitPrice - entryPrice) * size;
+                 } else { // Short
+                     pnl = (entryPrice - exitPrice) * size;
+                 }
+                 pnlField.value = `$${pnl.toFixed(2)}`;
+            } else {
+                 pnlField.value = ''; // Limpa se algum valor for inválido
+            }
+        }
+
+        // Adiciona listener ao campo de Preço de Saída no modal de fechamento
+        document.getElementById('closePositionExitPrice').addEventListener('input', calculateClosePnl);
+
+        // Função para CONFIRMAR o fechamento (chamada pelo botão do modal)
+        async function confirmClosePosition() {
+            const tradeId = document.getElementById('closePositionTradeId').value;
+            const exitPriceStr = document.getElementById('closePositionExitPrice').value;
+            // Lê o valor numérico original do input oculto
+            const entryPrice = parseFloat(document.getElementById('closePositionEntryPriceRaw').value);
+            const size = parseFloat(document.getElementById('closePositionSize').value);
+            const side = document.getElementById('closePositionSide').value;
+
+            const exitPrice = parseFloat(exitPriceStr);
+
+            if (isNaN(exitPrice)) {
+                alert("Preço de Saída inválido.");
+                return;
+            }
+
+             // Recalcula PnL final aqui para garantir precisão
+             let finalPnl;
+             if (side.toLowerCase() === 'long') {
+                 finalPnl = (exitPrice - entryPrice) * size;
+             } else { // Short
+                 finalPnl = (entryPrice - exitPrice) * size;
+             }
+
+            const updateData = {
+                exit_price: exitPrice,
+                pnl: finalPnl.toFixed(2)
+            };
+
+            console.log("Confirmando fechamento para:", tradeId, "com dados:", updateData);
+
+            try {
+                 const updateResponse = await fetch(`/api/trades/${tradeId}`, {
+                     method: 'PUT',
+                     headers: {
+                         'Content-Type': 'application/json'
+                     },
+                     body: JSON.stringify(updateData)
+                 });
+
+                 if (!updateResponse.ok) {
+                     const error = await updateResponse.json().catch(() => ({ error: 'Erro no servidor ao fechar posição.' }));
+                     throw new Error(error.error || 'Erro no servidor ao fechar posição.');
+                 }
+
+                 // Fechar o modal
+                 const closeMdl = bootstrap.Modal.getInstance(document.getElementById('closePositionModal'));
+                 closeMdl.hide();
+
+                 // Atualizar a interface
+                 console.log("Posição fechada com sucesso via modal!");
+                 await loadOpenPositions();
+                 await loadTrades();
+                 await loadStats();
+                 await loadDailyPnL();
+                 await loadDailyFees(); // <<< ADICIONAR CHAMADA AQUI
+                 // displayTotalVolume(); // Volume não deve mudar com fechamento
+             } catch (error) {
+                 console.error("Erro ao confirmar fechamento:", error);
+                 alert(`Erro ao confirmar fechamento: ${error.message}`);
+             }
+        }
+
+        // Adiciona listener ao botão de confirmação do modal de fechamento
+        document.getElementById('confirmCloseBtn').addEventListener('click', confirmClosePosition);
+
+        // Instâncias dos modais (para controlar programaticamente)
+        let depositModalInstance = null;
+        let withdrawModalInstance = null;
+        let closePositionModalInstance = null;
+        let editPositionModalInstance = null;
+        // REMOVIDO: Chave para o LocalStorage
+        // const LOCAL_STORAGE_BALANCES_KEY = 'trackerBalances';
+
+        // Função para inicializar os modais
+        function initializeModals() {
+            const depositModalElement = document.getElementById('depositModal');
+            const withdrawModalElement = document.getElementById('withdrawModal');
+            const closePositionModalElement = document.getElementById('closePositionModal');
+            const editPositionModalElement = document.getElementById('editPositionModal');
+
+            if (depositModalElement) {
+                 depositModalInstance = new bootstrap.Modal(depositModalElement);
+            }
+            if (withdrawModalElement) {
+                 withdrawModalInstance = new bootstrap.Modal(withdrawModalElement);
+            }
+            if (closePositionModalElement) {
+                 closePositionModalInstance = new bootstrap.Modal(closePositionModalElement);
+            }
+            if (editPositionModalElement) {
+                editPositionModalInstance = new bootstrap.Modal(editPositionModalElement);
+            }
+            // Adiciona listeners aos botões de confirmação
+            document.getElementById('confirmDepositBtn')?.addEventListener('click', confirmDeposit);
+            document.getElementById('confirmWithdrawBtn')?.addEventListener('click', confirmWithdraw);
+            document.getElementById('confirmCloseBtn')?.addEventListener('click', confirmClosePosition);
+            document.getElementById('confirmEditPositionBtn')?.addEventListener('click', confirmEditPosition);
+        }
+
+        // Função para atualizar uma linha específica do balanço na tabela (pode ser simplificada ou removida se loadBalance sempre recarrega tudo)
+        // Por ora, vamos manter, mas a lógica de atualização será centralizada em loadBalance
+        function updateBalanceRow(symbol) {
+            const balance = currentBalances.find(b => b.symbol === symbol);
+            if (!balance) return;
+
+            const row = document.querySelector(`#balance-row-${symbol}`);
+            if (!row) return;
+
+            const price = balanceMarketData[balance.apiId] ? balanceMarketData[balance.apiId].usd : null;
+            const valueUsd = price !== null ? balance.amount * price : null;
+
+            // Atualiza Quantidade Total
+            row.querySelector('.balance-amount').textContent = balance.amount.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 8 });
+
+            // Atualiza Valor (USD)
+            const valueCell = row.querySelector('.balance-value');
+            valueCell.textContent = valueUsd !== null ? valueUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '-';
+        }
+
+        // Função para abrir o modal de depósito
+        function openDepositModal(symbol) {
+            if (!depositModalInstance) return;
+            document.getElementById('depositSymbol').value = symbol;
+            document.getElementById('depositSymbolDisplay').textContent = symbol;
+            document.getElementById('depositAmount').value = ''; // Limpa o campo
+            depositModalInstance.show();
+        }
+
+        // Função para confirmar o depósito (MODIFICADA para usar API)
+        async function confirmDeposit() {
+            const symbol = document.getElementById('depositSymbol').value;
+            const amountStr = document.getElementById('depositAmount').value;
+
+            // Validação básica do input
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount) || amount <= 0) {
+                alert("Por favor, insira uma quantidade numérica positiva para depósito.");
+                return;
+            }
+
+            console.log(`[Deposit] Tentando depositar ${amount} ${symbol}`);
+
+            try {
+                const response = await fetch('/api/balances/deposit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol, amount: amount })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Erro ${response.status} ao registrar depósito.`);
+                }
+
+                console.log("[Deposit] Depósito registrado com sucesso via API.");
+                depositModalInstance.hide();
+                await loadBalance(); // Recarrega a tabela de balanço com os dados do servidor
+                // loadStats(); // Recarrega estatísticas se o balanço estimado for afetado
+                // displayTotalVolume(); // Recarrega volume se aplicável
+
+            } catch (error) {
+                console.error("[Deposit] Erro ao processar depósito:", error);
+                alert(`Erro ao realizar depósito: ${error.message}`);
+                 // Não fecha o modal em caso de erro
+            }
+        }
+
+        // Função para abrir o modal de saque
+        // ... (A lógica que busca o saldo atual precisará ser ajustada se `currentBalances` não for mais populado da mesma forma)
+        // Vamos ajustar loadBalance primeiro e depois revisitar esta.
+
+        // Função para confirmar o saque (MODIFICADA para usar API)
+        async function confirmWithdraw() {
+            const symbol = document.getElementById('withdrawSymbol').value;
+            const amountStr = document.getElementById('withdrawAmount').value;
+
+            // Validação básica
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount) || amount <= 0) {
+                alert("Por favor, insira uma quantidade numérica positiva para saque.");
+                return;
+            }
+
+             console.log(`[Withdraw] Tentando sacar ${amount} ${symbol}`);
+
+            try {
+                const response = await fetch('/api/balances/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: symbol, amount: amount })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Erro ${response.status} ao registrar saque.`);
+                }
+
+                console.log("[Withdraw] Saque registrado com sucesso via API.");
+                withdrawModalInstance.hide();
+                await loadBalance(); // Recarrega a tabela de balanço
+                // loadStats();
+                // displayTotalVolume();
+
+            } catch (error) {
+                 console.error("[Withdraw] Erro ao processar saque:", error);
+                 alert(`Erro ao realizar saque: ${error.message}`);
+                  // Não fecha o modal em caso de erro
+            }
+        }
+
+        // Função para carregar balanço (REESCRITA para usar API)
+        async function loadBalance() {
+            const tbody = document.getElementById('balanceTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Carregando balanço...</td></tr>';
+            let currentTotalSpotValue = 0;
+            balanceMarketData = {}; // Limpa dados de mercado antigos
+
+            // 1. Define os ativos a serem exibidos (com nome, ícone, apiId)
+            const assetsToShow = [
+                // Adicione aqui todos os ativos que você quer ver no balanço
+                { symbol: 'SOL', name: 'Solana',   apiId: 'solana' },
+                { symbol: 'KMNO', name: 'Kamino',   apiId: 'kamino' },
+                { symbol: 'USDT', name: 'Tether',   apiId: 'tether' },
+                { symbol: 'ETH',  name: 'Ethereum', apiId: 'ethereum' },
+                { symbol: 'BONK', name: 'Bonk',     apiId: 'bonk' },
+                { symbol: 'USDC', name: 'USD Coin', apiId: 'usd-coin' }
+                // Certifique-se que o `apiId` corresponde ao ID da CoinGecko
+            ];
+
+            try {
+                // 2. Busca os SALDOS REAIS do backend
+                const balancesResponse = await fetch('/api/balances');
+                if (!balancesResponse.ok) {
+                    throw new Error(`Erro ${balancesResponse.status} ao buscar saldos da API.`);
+                }
+                const currentServerBalances = await balancesResponse.json(); // Ex: {"SOL": 10.5, "USDT": 500}
+                console.log("[Balance Load] Saldos recebidos da API:", currentServerBalances);
+
+                // 3. Prepara IDs para buscar dados de mercado (preço/imagem)
+                const apiIdsToFetch = assetsToShow.map(a => a.apiId).filter(id => id);
+
+                // 4. Busca dados de mercado (preço E imagem) DO BACKEND
+                if (apiIdsToFetch.length > 0) {
+                    try {
+                        const idsString = apiIdsToFetch.join(',');
+                        const marketUrl = `/api/market_data?ids=${idsString}`; // <-- CHAMA A NOVA ROTA
+                        console.log(`[Balance Load] Buscando dados de mercado do backend: ${marketUrl}`);
+                        const marketResponse = await fetch(marketUrl);
+                        if (!marketResponse.ok) {
+                            const errorData = await marketResponse.json().catch(() => ({}));
+                            console.warn(`[Balance Load] Aviso: Falha ao buscar dados de mercado do backend: ${errorData.error || marketResponse.statusText}`);
+                        } else {
+                            // A resposta já vem no formato { id: { usd: price, image: url } }
+                            balanceMarketData = await marketResponse.json(); 
+                        }
+                    } catch (marketError) {
+                        console.error("[Balance Load] Erro ao buscar dados de mercado do backend:", marketError);
+                    }
+                }
+                console.log("[Balance Load] Dados de mercado (preço/imagem) obtidos do backend:", balanceMarketData);
+
+                // 5. Combina definições, saldos reais e dados de mercado (lógica existente)
+                let combinedBalances = assetsToShow.map(asset => {
+                    const amount = currentServerBalances[asset.symbol] || 0.0;
+                    const marketData = asset.apiId ? balanceMarketData[asset.apiId] : null;
+                    const price = marketData?.usd;
+                    const valueUsd = (price !== null && amount !== null) ? amount * price : null;
+
+                    return {
+                        ...asset,
+                        amount: amount,
+                        imageUrl: marketData?.image, // Guarda URL da imagem
+                        calculatedValueUsd: valueUsd // Guarda valor calculado
+                    };
+                });
+
+                // 6. Ordena pelo valor calculado
+                combinedBalances.sort((a, b) => {
+                    const valueA = a.calculatedValueUsd ?? -Infinity;
+                    const valueB = b.calculatedValueUsd ?? -Infinity;
+                    return valueB - valueA;
+                });
+
+                // 7. Renderiza a tabela
+                tbody.innerHTML = ''; // Limpa carregando
+                if (combinedBalances.length === 0) {
+                     tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Nenhum ativo definido para exibição.</td></tr>';
+                     globalTotalSpotValue = 0;
+                     updateEstimatedBalance();
+                     return;
+                }
+
+                combinedBalances.forEach(bal => {
+                    const valueUsd = bal.calculatedValueUsd;
+                    const imageUrl = bal.imageUrl;
+
+                    if (valueUsd !== null) {
+                        currentTotalSpotValue += valueUsd;
+                    }
+
+                    const row = document.createElement('tr');
+                    row.id = `balance-row-${bal.symbol}`;
+                    const imageHtml = imageUrl ? `<img src="${imageUrl}" width="24" height="24" class="me-2" alt="${bal.symbol}">` : '<span class="me-2" style="display: inline-block; width: 24px;"></span>';
+
+                    row.innerHTML = `
+                        <td>
+                            <div class="d-flex align-items-center">
+                                ${imageHtml}
+                                <div>
+                                    <div class="fw-bold">${bal.name}</div>
+                                    <small class="text-muted">${bal.symbol}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end balance-amount">${bal.amount.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</td>
+                        <td class="text-end balance-value">${valueUsd !== null ? valueUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : '-'}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-success me-1" onclick="openDepositModal('${bal.symbol}')">Deposito</button>
+                            <button class="btn btn-sm btn-warning" onclick="openWithdrawModal('${bal.symbol}')">Sacar</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                globalTotalSpotValue = currentTotalSpotValue;
+                updateEstimatedBalance();
+                // Atualiza a variável global `currentBalances` para `openWithdrawModal` usar? Sim.
+                currentBalances = combinedBalances; 
+
+            } catch (error) {
+                console.error("[Balance Load] Erro GERAL ao carregar balanço:", error);
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Erro ao carregar balanço. Verifique o console.</td></tr>';
+                globalTotalSpotValue = 0; // Reseta em caso de erro
+                updateEstimatedBalance();
+            }
+        }
+
+        // -- FIM: Modificações Balanço com Armazenamento Permanente --
+
+        // Função para ABRIR o modal de saque (AJUSTADA)
+        function openWithdrawModal(symbol) {
+            // Busca o saldo ATUALIZADO do array `currentBalances` (que foi populado por loadBalance)
+            const balance = currentBalances.find(b => b.symbol === symbol);
+            const currentAmount = balance ? balance.amount : 0.0; // Usa 0 se não encontrado
+
+            if (!withdrawModalInstance) return;
+
+            document.getElementById('withdrawSymbol').value = symbol;
+            document.getElementById('withdrawSymbolDisplay').textContent = symbol;
+            document.getElementById('withdrawAmount').value = '';
+            document.getElementById('withdrawMaxAmount').textContent = `Saldo disponível: ${currentAmount.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 8 })}`;
+            withdrawModalInstance.show();
+        }
+
+        // NOVA FUNÇÃO para atualizar o balanço estimado
+        function updateEstimatedBalance() {
+            // Log detalhado para depuração do NaN
+            console.log(`[UpdateBalance DEBUG] Calculando: 
+                SpotValue: ${globalTotalSpotValue} (Tipo: ${typeof globalTotalSpotValue}), 
+                TotalPnL: ${globalTotalPnl} (Tipo: ${typeof globalTotalPnl}), 
+                UnrealizedPnL: ${globalUnrealizedPnl} (Tipo: ${typeof globalUnrealizedPnl}), 
+                TotalFees: ${globalTotalFees} (Tipo: ${typeof globalTotalFees})`);
+
+            // Subtrai as taxas totais
+            const estimatedBalance = globalTotalSpotValue + globalTotalPnl + globalUnrealizedPnl - globalTotalFees;
+            console.log(`[UpdateBalance DEBUG] Resultado Bruto: ${estimatedBalance} (Tipo: ${typeof estimatedBalance})`); // Log do resultado antes de formatar
+
+            const balanceElement = document.getElementById('estimatedBalanceValue');
+            if (balanceElement) {
+                balanceElement.textContent = estimatedBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+                // Atualiza a cor do balanço
+                if (estimatedBalance > 0) {
+                    balanceElement.classList.remove('negative'); // <-- USA .negative normal
+                    balanceElement.classList.add('positive');
+                } else if (estimatedBalance < 0) {
+                    balanceElement.classList.remove('positive');
+                    balanceElement.classList.add('negative'); // <-- USA .negative normal
+                } else {
+                    balanceElement.classList.remove('positive', 'negative'); // <-- USA .negative normal
+                }
+            }
+        }
+
+        // Função para ABRIR o modal de edição de posição (TP/SL)
+        async function openEditPositionModal(tradeId) {
+            console.log(`[DEBUG] openEditPositionModal chamada com ID: ${tradeId}`); // Log 1: Função chamada
+            if (!editPositionModalInstance) {
+                console.error("[DEBUG] ERRO: Instância do modal de edição (editPositionModalInstance) não encontrada!"); // Log 2: Erro de instância
+                return;
+            }
+            console.log("[DEBUG] Instância do modal encontrada."); // Log 3: Instância OK
+
+            try {
+                 console.log(`[DEBUG] Buscando dados para trade ID: ${tradeId}`); // Log 4: Iniciando Fetch
+                 const response = await fetch(`/api/trades/${tradeId}`);
+                 console.log(`[DEBUG] Fetch status para trade ${tradeId}: ${response.status}`); // Log 5: Status do Fetch
+                 if (!response.ok) {
+                     const errorText = await response.text();
+                     console.error(`[DEBUG] Erro no fetch: ${response.status} - ${errorText}`); // Log 6: Erro Fetch
+                     throw new Error('Erro ao buscar dados do trade para edição.');
+                 }
+                 const tradeData = await response.json();
+                 console.log("[DEBUG] Dados do trade recebidos:", tradeData); // Log 7: Dados Recebidos
+
+                // Preencher o modal
+                document.getElementById('editPositionTradeId').value = tradeData.id;
+                document.getElementById('editPositionSymbolDisplay').textContent = tradeData.symbol;
+                document.getElementById('editPositionEntryPriceDisplay').value = tradeData.entry_price?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || 'N/A';
+                document.getElementById('editPositionSizeDisplay').value = tradeData.size || 'N/A';
+                document.getElementById('editPositionSideDisplay').value = tradeData.side || 'N/A';
+                document.getElementById('editPositionTakeProfit').value = tradeData.take_profit ?? '';
+                document.getElementById('editPositionStopLoss').value = tradeData.stop_loss ?? '';
+                console.log("[DEBUG] Campos do modal preenchidos."); // Log 8: Campos Preenchidos
+
+                editPositionModalInstance.show();
+                console.log("[DEBUG] Modal de edição exibido."); // Log 9: Modal Exibido
+            } catch (error) {
+                console.error("[DEBUG] ERRO dentro do try/catch de openEditPositionModal:", error); // Log 10: Erro Capturado
+                alert(`Não foi possível carregar os dados para edição: ${error.message}`);
+            }
+        }
+
+        // Função para CONFIRMAR a edição da posição (Salvar TP/SL)
+        async function confirmEditPosition() {
+            const tradeId = document.getElementById('editPositionTradeId').value;
+            const takeProfitInput = document.getElementById('editPositionTakeProfit');
+            const stopLossInput = document.getElementById('editPositionStopLoss');
+
+            // Lê os valores, permitindo que sejam vazios (serão convertidos para None no backend)
+            const takeProfitValue = takeProfitInput.value.trim() === '' ? null : takeProfitInput.value;
+            const stopLossValue = stopLossInput.value.trim() === '' ? null : stopLossInput.value;
+
+            console.log(`Salvando edição para Trade ID ${tradeId}: TP=${takeProfitValue}, SL=${stopLossValue}`);
+
+            const updateData = {
+                take_profit: takeProfitValue,
+                stop_loss: stopLossValue
+            };
+
+            try {
+                const response = await fetch(`/api/trades/${tradeId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updateData),
+                });
+
+                if (!response.ok) {
+                     const errorData = await response.json().catch(() => ({ error: 'Erro desconhecido ao salvar.' }));
+                     throw new Error(errorData.error || `Erro ${response.status} ao salvar alterações.`);
+                }
+
+                const updatedTrade = await response.json();
+                console.log('Edição salva com sucesso:', updatedTrade);
+
+                editPositionModalInstance.hide();
+                loadOpenPositions(); // Recarrega a tabela para mostrar os novos valores TP/SL
+
+            } catch (error) {
+                console.error('Erro ao salvar edição da posição:', error);
+                alert(`Erro ao salvar: ${error.message}`);
+                // Não fecha o modal em caso de erro para o usuário corrigir
+            }
+        }
+
+        // Carregar dados iniciais
+        loadStats(); // Chamada inicial (já vai pegar o TIER default ou do localStorage)
+        loadTrades();
+        displayTotalVolume();
+        loadDailyPnL();
+        loadDailyFees(); // <<< ADICIONAR CHAMADA AQUI
+        loadOpenPositions();
+        loadBalance();
+        initializeModals();
+
+        // --- INÍCIO: Lógica de Monitoramento TP/SL ---
+
+        // Função que verifica os gatilhos de TP/SL
+        async function checkTpSlTriggers() {
+            if (positionsToMonitor.length === 0) {
+                // console.log("[TP/SL Check] Nenhuma posição para monitorar.");
+                return; // Nada a fazer
+            }
+
+            console.log(`[TP/SL Check] Verificando ${positionsToMonitor.length} posições...`);
+
+            const apiIdsToCheck = [...new Set(positionsToMonitor.map(p => p.apiId).filter(id => id))];
+            if (apiIdsToCheck.length === 0) {
+                 console.log("[TP/SL Check] Nenhuma posição com ID de API mapeado para buscar preço.");
+                 return;
+            }
+
+            const currentPrices = await fetchCurrentPrices(apiIdsToCheck);
+            // console.log("[TP/SL Check] Preços atuais obtidos:", currentPrices);
+
+            // Usa Promise.all para processar os fechamentos em paralelo se múltiplos ocorrerem
+            const closePromises = positionsToMonitor.map(async (pos) => {
+                if (!pos.apiId || !currentPrices[pos.apiId]) {
+                    // console.log(`[TP/SL Check] Preço atual indisponível para ${pos.symbol} (ID: ${pos.id})`);
+                    return; // Pula se não temos preço atual
+                }
+
+                const currentPrice = currentPrices[pos.apiId].usd;
+                let triggerPrice = null;
+                let triggerType = null; // 'TP' or 'SL'
+
+                // Verifica Take Profit
+                if (pos.take_profit !== null) {
+                    if ((pos.side === 'long' && currentPrice >= pos.take_profit) || (pos.side === 'short' && currentPrice <= pos.take_profit)) {
+                        triggerPrice = pos.take_profit;
+                        triggerType = 'TP';
+                        console.log(`[TP/SL TRIGGER!] ${pos.symbol} (ID: ${pos.id}) atingiu Take Profit em ${triggerPrice}`);
+                    }
+                }
+
+                // Verifica Stop Loss (só se TP não foi atingido)
+                if (triggerPrice === null && pos.stop_loss !== null) {
+                    if ((pos.side === 'long' && currentPrice <= pos.stop_loss) || (pos.side === 'short' && currentPrice >= pos.stop_loss)) {
+                        triggerPrice = pos.stop_loss;
+                        triggerType = 'SL';
+                        console.log(`[TP/SL TRIGGER!] ${pos.symbol} (ID: ${pos.id}) atingiu Stop Loss em ${triggerPrice}`);
+                    }
+                }
+
+                // Se um gatilho ocorreu, chama a API para fechar
+                if (triggerPrice !== null) {
+                    try {
+                        const response = await fetch(`/api/trades/${pos.id}/trigger_close`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ trigger_price: triggerPrice })
+                        });
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(errorData.error || `Erro ${response.status} ao acionar fechamento para ${pos.id}`);
+                        }
+                        console.log(`[TP/SL Check] Fechamento para ${pos.id} acionado com sucesso via API.`);
+                        // Retorna o ID do trade fechado para remoção posterior
+                        return pos.id;
+                    } catch (error) {
+                        console.error(`[TP/SL Check] Erro ao tentar fechar trade ${pos.id} via API:`, error);
+                        // Não remove da lista de monitoramento para tentar novamente?
+                        // Ou remove para evitar loops? Por ora, não removemos em caso de erro.
+                        return null;
+                    }
+                }
+                return null; // Nenhum gatilho para esta posição
+            });
+
+            // Espera todas as tentativas de fechamento terminarem
+            const closedTradeIds = (await Promise.all(closePromises)).filter(id => id !== null);
+
+            // Se algum trade foi fechado com sucesso, remove da lista de monitoramento e recarrega tudo
+            if (closedTradeIds.length > 0) {
+                console.log(`[TP/SL Check] Trades fechados por gatilho: ${closedTradeIds.join(', ')}. Removendo do monitoramento e recarregando dados.`);
+                positionsToMonitor = positionsToMonitor.filter(pos => !closedTradeIds.includes(pos.id));
+
+                // Recarrega APENAS o necessário imediatamente
+                // loadStats(); // Removido - será atualizado por loadTrades/loadOpenPositions
+                loadTrades(); // Atualiza histórico
+                loadOpenPositions(); // Atualiza posições abertas (e reinicia o monitor se necessário)
+                await loadDailyPnL();
+                await loadDailyFees(); // <<< ADICIONAR CHAMADA AQUI
+                // displayTotalVolume(); // Removido - volume não muda com fechamento (na lógica atual)
+            }
+        }
+
+        // Função para iniciar o monitoramento periódico
+        function startTpSlMonitoring() {
+            // Limpa timer antigo se existir
+            stopTpSlMonitoring();
+
+            if (positionsToMonitor.length > 0) {
+                 console.log(`[TP/SL Monitor] Iniciando monitoramento para ${positionsToMonitor.length} posições a cada ${TP_SL_CHECK_INTERVAL_MS / 1000}s.`);
+                 // Chama imediatamente uma vez - REMOVER ESTA LINHA
+                 // checkTpSlTriggers();
+                 // Apenas agenda para rodar periodicamente
+                 tpSlCheckIntervalId = setInterval(checkTpSlTriggers, TP_SL_CHECK_INTERVAL_MS);
+            } else {
+                console.log("[TP/SL Monitor] Nenhuma posição com TP/SL para monitorar.");
+            }
+        }
+
+        // Função para parar o monitoramento
+        function stopTpSlMonitoring() {
+            if (tpSlCheckIntervalId !== null) {
+                console.log("[TP/SL Monitor] Parando monitoramento periódico.");
+                clearInterval(tpSlCheckIntervalId);
+                tpSlCheckIntervalId = null;
+            }
+        }
+
+        // --- FIM: Lógica de Monitoramento TP/SL ---
+
+
+        // -- INÍCIO: Modificações Balanço com LocalStorage --
+
+        // Função para buscar e exibir o PnL do Dia
+        async function loadDailyPnL() {
+            const pnlElement = document.getElementById('dailyPnL');
+            pnlElement.textContent = 'Carregando...'; // Feedback
+            try {
+                const response = await fetch('/api/daily_pnl');
+                console.log("Daily PnL API Response Status:", response.status); // Log Status
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar PnL do dia');
+                }
+                const data = await response.json();
+                console.log("Daily PnL data from API:", data); // Log Raw Data
+
+                const dailyPnlValue = (typeof data.daily_pnl === 'number' && !isNaN(data.daily_pnl)) ? data.daily_pnl : 0;
+                console.log("Processed dailyPnlValue:", dailyPnlValue); // Log Processed Value
+
+                globalDailyGrossPnl = dailyPnlValue; // <-- Armazena valor bruto
+                pnlElement.textContent = formatCurrency(dailyPnlValue);
+                // Define a cor baseada no PnL do Dia Bruto
+                if (dailyPnlValue > 0) {
+                    pnlElement.classList.remove('negative'); // <-- USA .negative normal
+                    pnlElement.classList.add('positive');
+                } else if (dailyPnlValue < 0) {
+                    pnlElement.classList.remove('positive');
+                    pnlElement.classList.add('negative'); // <-- USA .negative normal
+                } else {
+                    pnlElement.classList.remove('positive', 'negative'); // <-- USA .negative normal
+                }
+                calculateAndDisplayDailyNetPnl(); // <-- CHAMA O CÁLCULO AQUI
+            } catch (error) {
+                console.error('Erro ao buscar PnL do dia:', error);
+                globalDailyGrossPnl = 0; // <-- Reseta em caso de erro
+                pnlElement.textContent = formatCurrency(0); // Usa formatador
+                pnlElement.classList.remove('text-success', 'text-danger');
+                calculateAndDisplayDailyNetPnl(); // <-- CHAMA O CÁLCULO AQUI (com valor zerado)
+            }
+        }
+
+        // Função para buscar e exibir as Taxas do Dia
+        async function loadDailyFees() {
+            const feesElement = document.getElementById('dailyFees');
+            feesElement.textContent = 'Carregando...'; // Feedback
+            try {
+                const response = await fetch('/api/daily_fees');
+                console.log("Daily Fees API Response Status:", response.status);
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar taxas do dia');
+                }
+                const data = await response.json();
+                console.log("Daily Fees data from API:", data);
+
+                const dailyFeesValue = (typeof data.daily_fees === 'number' && !isNaN(data.daily_fees)) ? data.daily_fees : 0;
+                console.log("Processed dailyFeesValue:", dailyFeesValue);
+
+                globalDailyFees = dailyFeesValue; // <-- Armazena valor bruto
+                // ADICIONA SINAL DE MENOS (-) ANTES DO VALOR
+                feesElement.textContent = '-' + formatCurrency(dailyFeesValue);
+                feesElement.className = 'card-text mt-1 text-danger'; // Mantém text-danger
+                calculateAndDisplayDailyNetPnl(); // <-- CHAMA O CÁLCULO AQUI
+            } catch (error) {
+                console.error('Erro ao carregar taxas do dia:', error);
+                globalDailyFees = 0; // <-- Reseta em caso de erro
+                feesElement.textContent = formatCurrency(0); // Usa formatador
+                feesElement.className = 'card-text mt-1';
+                calculateAndDisplayDailyNetPnl(); // <-- CHAMA O CÁLCULO AQUI (com valor zerado)
+            }
+        }
+
+        // Função para buscar e exibir o volume total
+        async function displayTotalVolume() {
+            const volumeElement = document.getElementById('totalVolume');
+            try {
+                const response = await fetch('/api/total_volume');
+                console.log("Total Volume API Response Status:", response.status); // Log Status
+                if (!response.ok) {
+                    throw new Error('Erro ao buscar volume total');
+                }
+                const data = await response.json();
+                console.log("Volume data from API:", data); // Log Raw Data
+
+                // Verifica se data.total_volume é um número válido, senão usa 0
+                const volumeValue = (typeof data.total_volume === 'number' && !isNaN(data.total_volume)) ? data.total_volume : 0;
+                console.log("Processed volumeValue:", volumeValue); // Log Processed Value
+
+                volumeElement.textContent = volumeValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+            } catch (error) {
+                console.error('Erro ao exibir volume total:', error);
+                volumeElement.textContent = '$0.00'; // Exibe $0.00 em caso de erro
+            }
+        }
+
+        // --- Função para Calcular e Exibir PnL Líquido do Dia --- (Já existe, ok)
+        function calculateAndDisplayDailyNetPnl() {
+            // ADICIONAR LOG DETALHADO AQUI
+            console.log(`[Net PnL Calc] Tentando calcular. Bruto = ${globalDailyGrossPnl}, Taxas = ${globalDailyFees}`); 
+            
+            const netPnl = globalDailyGrossPnl - globalDailyFees;
+            const netPnlElement = document.getElementById('dailyNetPnl');
+
+            if (!netPnlElement) {
+                console.error("Elemento #dailyNetPnl não encontrado!");
+                return;
+            }
+
+            netPnlElement.textContent = formatCurrency(netPnl);
+            // Muda a cor baseado no valor
+            if (netPnl > 0) {
+                netPnlElement.classList.remove('text-danger');
+                netPnlElement.classList.add('text-success');
+            } else if (netPnl < 0) {
+                netPnlElement.classList.remove('text-success');
+                netPnlElement.classList.add('text-danger');
+            } else {
+                netPnlElement.classList.remove('text-success', 'text-danger');
+            }
+             console.log(`PnL Líquido Calculado e Exibido: ${netPnl}`);
+        }
+        // -----------------------------------------------------------
+
+        // ... (funções loadTrades, loadOpenPositions, loadBalance, etc.) ...
+
+        // --- Inicialização --- 
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM carregado. Iniciando carregamento de dados...');
+            initializeModals(); // Inicializa modais primeiro
+            
+            // Carrega dados do resumo diario - ASYNC
+            loadStats(); // Esta também pode ser async se precisar esperar
+            loadDailyPnL();     // Inicia carregamento PNL Bruto (agora chama o cálculo interno)
+            loadDailyFees();    // Inicia carregamento Taxas Dia (agora chama o cálculo interno)
+            // calculateAndDisplayDailyNetPnl(); // REMOVIDO DAQUI - será chamado pelas funções acima
+            
+            // Carrega dados das tabelas - SYNC (ou podem ser async também)
+            loadTrades(); 
+            // loadOpenPositions(); // REMOVIDO DAQUI - será chamado por outras funções
+            loadBalance(); // loadBalance agora deve chamar loadOpenPositions indiretamente ou precisamos garantir que seja chamado
+            
+            // Inicia monitoramento TP/SL - SYNC
+            startTpSlMonitoring(); 
+            console.log('Chamadas de carregamento inicial disparadas.');
+        });
+
+        // ... (Restante do JavaScript)
+
+        // (A chamada loadOpenPositions é feita dentro de loadBalances agora)
+        // startTpSlMonitoring(); 
+
+        // Adiciona listener para carregar o histórico PNL diário quando a aba for mostrada
+        const dailyPnlTab = document.getElementById('pills-daily-pnl-tab');
+        if (dailyPnlTab) {
+            dailyPnlTab.addEventListener('shown.bs.tab', event => {
+                 // Só carrega se ainda não foi carregado para evitar chamadas repetidas
+                if (!dailyPnlHistoryLoaded) {
+                    loadDailyPnlHistory();
+                }
+            });
+        }
+        // Liga listeners das outras abas se necessário (ex: para recarregar dados)
+        const historyTab = document.getElementById('pills-history-tab');
+    </script>
+
+</body>
+</html> 

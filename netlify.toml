@@ -1,0 +1,19 @@
+[build]
+  command = "pip install -r requirements.txt"
+  # O diretório de funções onde está o handler api.py
+  functions = "netlify/functions/"
+  # O diretório de publicação geralmente não é relevante quando
+  # tudo é servido pela função, mas pode ser necessário definir.
+  # publish = "." # Ou o diretório de arquivos estáticos se você os separar
+
+# Define o ambiente de build (opcional, mas recomendado)
+[build.environment]
+  # Garanta que a versão do Python seja compatível com suas dependências
+  PYTHON_VERSION = "3.11" # Ou 3.9, 3.10, etc.
+
+# Regra de reescrita crucial: direciona todas as requisições
+# para a função serverless 'api' que executa o Flask.
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200 # Importante usar 200 para reescrita interna 
