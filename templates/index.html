@@ -1244,7 +1244,7 @@
                 }
 
                 console.log(`[History DEBUG] Iniciando loop para ${trades.length} trades.`);
-                trades.reverse().forEach((trade, index) => {
+                trades.forEach((trade, index) => { // <-- REMOVIDO o .reverse() daqui
                     console.log(`[History DEBUG] Processando trade ${index + 1}:`, trade);
                     try {
                         const date = trade.timestamp ? new Date(trade.timestamp).toLocaleString('pt-BR') : 'Data Inválida';
