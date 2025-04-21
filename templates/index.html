@@ -102,6 +102,15 @@
              color: #aaa;
         }
 
+        /* NOVOS Estilos para Indicador Long/Short */
+        .trade-short {
+            border-left: 4px solid #c0392b !important; /* Vermelho mais escuro */
+        }
+        .trade-long {
+            border-left: 4px solid #27ae60 !important; /* Verde mais escuro */
+        }
+        /* FIM Novos Estilos */
+
     </style>
 </head>
 <body>
@@ -1277,7 +1286,15 @@
                         console.log(`[History DEBUG] Trade ${index + 1} - Processed values: date=${date}, symbol=${symbol}, pnl=${pnl}, pnlDisplay=${pnlDisplay}, valorEntrada=${valorEntradaDisplay}`);
 
                         const row = document.createElement('tr');
-                        row.className = 'trade-row';
+                        row.className = 'trade-row'; // Mantém classe existente se houver
+
+                        // Adiciona classe para a borda colorida
+                        const sideLower = side.toLowerCase();
+                        if (sideLower === 'short') {
+                            row.classList.add('trade-short');
+                        } else if (sideLower === 'long') {
+                            row.classList.add('trade-long');
+                        }
 
                         // Constrói o HTML da linha de forma segura
                         row.innerHTML = `
@@ -2454,6 +2471,15 @@
              console.log(`PnL Líquido Calculado e Exibido: ${netPnl}`);
         }
         // -----------------------------------------------------------
+
+        // --- NOVO: Converte Símbolo para Maiúsculas Automaticamente ---
+        const symbolInput = document.getElementById('symbol');
+        if (symbolInput) {
+            symbolInput.addEventListener('input', function() {
+                this.value = this.value.toUpperCase();
+            });
+        }
+        // ----------------------------------------------------------------
 
         // ... (funções loadTrades, loadOpenPositions, loadBalance, etc.) ...
 
