@@ -111,6 +111,23 @@
         }
         /* FIM Novos Estilos */
 
+        /* NOVOS Estilos para Indicador Long/Short (Span Version) */
+        .trade-indicator-line {
+            display: inline-block;
+            width: 4px;           /* Largura da linha */
+            height: 1.2em;        /* Altura - ajustar se necessário */
+            margin-right: 8px;    /* Espaço entre linha e texto */
+            vertical-align: middle; /* Alinha verticalmente */
+            border-radius: 2px;   /* Opcional: bordas arredondadas */
+        }
+        .trade-short-line {
+            background-color: #c0392b !important; /* Vermelho mais escuro */
+        }
+        .trade-long-line {
+            background-color: #27ae60 !important; /* Verde mais escuro */
+        }
+        /* FIM Novos Estilos */
+
     </style>
 </head>
 <body>
@@ -1292,11 +1309,16 @@
                         const sideLower = side.toLowerCase();
                         const symbolClass = sideLower === 'short' ? 'trade-short' : (sideLower === 'long' ? 'trade-long' : '');
 
+                        // Determina a classe CSS para a linha indicadora
+                        const indicatorLineClass = sideLower === 'short' ? 'trade-short-line' : (sideLower === 'long' ? 'trade-long-line' : '');
+
                         // Constrói o HTML da linha de forma segura
                         row.innerHTML = `
                             <td>${date}</td>
-                            <td class="symbol ${symbolClass}">${symbol}</td> <!-- Classe aplicada AQUI -->
-                            <td><div class="trade-type ${sideLower}">${side.toUpperCase()}</div></td> <!-- Comentário REMOVIDO daqui -->
+                            <td class="symbol">
+                                <span class="trade-indicator-line ${indicatorLineClass}"></span>${symbol}
+                            </td>
+                            <td><div class="trade-type ${sideLower}">${side.toUpperCase()}</div></td>
                             <td>${entryPriceDisplay}</td>
                             <td>${exitPrice}</td>
                             <td>${size !== null ? size : '-'}</td> <!-- Exibe tamanho formatado ou '-' -->
