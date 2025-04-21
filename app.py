@@ -10,6 +10,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 import requests
 import math
 from sqlalchemy import func # Para usar funções SQL como SUM, MAX, MIN
+import click
 
 # Carrega variáveis de ambiente do arquivo .env (se existir)
 # Ótimo para desenvolvimento local
@@ -1027,6 +1028,35 @@ def get_market_data():
 # migrate_closed_at_timestamps() # Migração antiga
 # migrate_historical_volume()    # Migração antiga
 # -----------------------------------------------------------
+
+
+# --- CLI Commands ---
+
+@app.cli.command("create-user")
+@click.argument("email")
+@click.password_option()
+def create_user(email, password):
+    """Creates a new user with the given email and password."""
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        print(f"Error: User with email {email} already exists.")
+        return
+
+    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+    # Use um ID simples ou gere um UUID se preferir
+    # Para simplificar, vamos usar o email como parte do ID ou um contador simples
+    # Contando usuários existentes para gerar um ID simples (não ideal para alta concorrência)
+    user_count = User.query.count()
+    new_user_id = str(user_count + 1)
+
+    new_user = User(id=new_user_id, email=email, password_hash=hashed_password)
+    db.session.add(new_user)
+    try:
+        db.session.commit()
+        print(f"User {email} created successfully with ID {new_user_id}.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating user: {e}")
 
 
 # --- Inicialização Principal (Apenas para Desenvolvimento Local) ---
