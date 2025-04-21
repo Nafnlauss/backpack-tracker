@@ -1295,8 +1295,8 @@
                         // Constrói o HTML da linha de forma segura
                         row.innerHTML = `
                             <td>${date}</td>
-                            <td class="symbol ${symbolClass}">${symbol}</td> // <-- ADICIONADO CLASSE AQUI
-                            <td><div class="trade-type ${sideLower}">${side.toUpperCase()}</div></td>
+                            <td class="symbol ${symbolClass}">${symbol}</td> <!-- Classe aplicada AQUI -->
+                            <td><div class="trade-type ${sideLower}">${side.toUpperCase()}</div></td> <!-- Comentário REMOVIDO daqui -->
                             <td>${entryPriceDisplay}</td>
                             <td>${exitPrice}</td>
                             <td>${size !== null ? size : '-'}</td> <!-- Exibe tamanho formatado ou '-' -->
