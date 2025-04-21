@@ -346,8 +346,8 @@
                         <div class="col-md-1"> <!-- Status -->
                             <label for="tradeStatus" class="form-label">Status *</label>
                             <select class="form-select bg-dark text-white" id="tradeStatus" name="status" required>
-                                <option value="aberto" selected>Aberto</option>
-                                <option value="fechado">Fechado</option>
+                                <option value="aberto">Aberto</option>
+                                <option value="fechado" selected>Fechado</option> // <-- MUDANÇA AQUI
                             </select>
                         </div>
                         <div class="col-md-1"> <!-- Saída -->
@@ -1288,19 +1288,15 @@
                         const row = document.createElement('tr');
                         row.className = 'trade-row'; // Mantém classe existente se houver
 
-                        // Adiciona classe para a borda colorida
+                        // Adiciona a classe diretamente na célula do símbolo
                         const sideLower = side.toLowerCase();
-                        if (sideLower === 'short') {
-                            row.classList.add('trade-short');
-                        } else if (sideLower === 'long') {
-                            row.classList.add('trade-long');
-                        }
+                        const symbolClass = sideLower === 'short' ? 'trade-short' : (sideLower === 'long' ? 'trade-long' : '');
 
                         // Constrói o HTML da linha de forma segura
                         row.innerHTML = `
                             <td>${date}</td>
-                            <td class="symbol">${symbol}</td>
-                            <td><div class="trade-type ${side.toLowerCase()}">${side.toUpperCase()}</div></td>
+                            <td class="symbol ${symbolClass}">${symbol}</td> // <-- ADICIONADO CLASSE AQUI
+                            <td><div class="trade-type ${sideLower}">${side.toUpperCase()}</div></td>
                             <td>${entryPriceDisplay}</td>
                             <td>${exitPrice}</td>
                             <td>${size !== null ? size : '-'}</td> <!-- Exibe tamanho formatado ou '-' -->
