@@ -140,7 +140,7 @@ TIER_FEES_TAKER = {
 DEFAULT_TIER = '1'
 DEFAULT_MAKER_FEE_RATE = TIER_FEES_MAKER[DEFAULT_TIER]
 DEFAULT_TAKER_FEE_RATE = TIER_FEES_TAKER[DEFAULT_TIER]
-# Mapeamento Símbolo -> ID API CoinGecko (Mantido)
+# Mapeamento Símbolo -> ID API CoinGecko (Mantido para referência, mas usado ao contrário agora)
 symbol_to_id_map = {
     'btc': 'bitcoin', 'eth': 'ethereum', 'bnb': 'binancecoin', 'xrp': 'ripple',
     'sol': 'solana', 's': 'sonic-3', 'hype': 'hyperliquid', 'sui': 'sui',
@@ -148,9 +148,11 @@ symbol_to_id_map = {
     'doge': 'dogecoin', 'trump': 'official-trump', 'avax': 'avalanche-2',
     'ena': 'ethena', 'arb': 'arbitrum', 'wif': 'dogwifcoin', 'ltc': 'litecoin',
     'ondo': 'ondo-finance', 'dot': 'polkadot', 'ada': 'cardano', 'kaito': 'kaito',
-    'aave': 'aave', 'fartcoin': 'fartcoin', 'ip': 'story-2', 'kmno': 'kamino',
-    'usdt': 'tether', 'bonk': 'bonk', 'usdc': 'usd-coin'
+    'aave': 'aave', 'fartcoin': 'fartcoin', 'ip': 'story-2', 'kmno': 'kamino', # Adicionado KMNO
+    'usdt': 'tether', 'bonk': 'bonk', 'usdc': 'usd-coin' # Adicionado BONK e USDC
 }
+# Criar mapeamento reverso (ID -> Símbolo) para usar com CoinMarketCap
+id_to_symbol_map = {v: k.upper() for k, v in symbol_to_id_map.items()} # Converte para MAIÚSCULAS
 
 # --- Helper Functions ---
 def get_total_volume_from_db():
@@ -971,47 +973,123 @@ def get_daily_pnl_history():
          traceback.print_exc()
          return jsonify({"error": "Erro ao buscar histórico de PNL diário"}), 500
 
-# Rota Buscar Dados de Mercado (CoinGecko - Mantida como estava)
+# Rota Buscar Dados de Mercado (AGORA USA CoinMarketCap)
 @app.route('/api/market_data')
 @login_required
 def get_market_data():
-    # ... (código original mantido) ...
-    # Pega os IDs da query string (ex: /api/market_data?ids=bitcoin,solana)
+    # Pega os IDs da query string (ainda no formato CoinGecko ID)
     ids_param = request.args.get('ids')
     if not ids_param:
         return jsonify({"error": "Parâmetro 'ids' é obrigatório"}), 400
 
-    print(f"[Market Data API] Recebido pedido para IDs: {ids_param}")
-    # Usar a API de mercados para obter preço e imagem
-    market_url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={ids_param}&order=market_cap_desc&page=1&sparkline=false"
-    
-    market_data_response = {}
+    print(f"[Market Data API] Recebido pedido para IDs (formato CoinGecko): {ids_param}")
+
+    # Converte IDs CoinGecko para Símbolos CoinMarketCap (MAIÚSCULOS)
+    coingecko_ids = ids_param.split(',')
+    symbols_to_query = []
+    original_id_map = {} # Para mapear de volta Símbolo -> ID original na resposta
+    for cg_id in coingecko_ids:
+        symbol = id_to_symbol_map.get(cg_id.lower().strip())
+        if symbol:
+            symbols_to_query.append(symbol)
+            original_id_map[symbol] = cg_id # Guarda o ID original
+        else:
+            print(f"[Market Data API WARN] Não foi possível mapear o ID CoinGecko '{cg_id}' para um símbolo CoinMarketCap.")
+
+    if not symbols_to_query:
+        print("[Market Data API ERROR] Nenhum símbolo válido encontrado após mapeamento.")
+        # Retorna vazio ou erro? Retornar vazio pode ser melhor para o frontend
+        return jsonify({}) # Retorna objeto vazio se nenhum símbolo puder ser consultado
+
+    symbols_param = ','.join(symbols_to_query)
+    print(f"[Market Data API] Símbolos mapeados para consulta CoinMarketCap: {symbols_param}")
+
+
+    # Pega a chave da API CoinMarketCap das variáveis de ambiente
+    api_key = os.environ.get('COINMARKETCAP_API_KEY')
+    if not api_key:
+        print("[Market Data API ERROR] Chave da API CoinMarketCap (COINMARKETCAP_API_KEY) não está configurada no ambiente.")
+        # Sem chave, a API Pro da CMC não funcionará.
+        return jsonify({"error": "Configuração interna do servidor incompleta (API Key ausente)"}), 500
+
+    headers = {
+        'Accepts': 'application/json',
+        'X-CMC_PRO_API_KEY': api_key,
+    }
+
+    # Endpoint da CoinMarketCap (v2/cryptocurrency/quotes/latest é mais recente, verificar docs se necessário)
+    # Usando a v1 por enquanto como exemplo comum
+    # ATENÇÃO: Use a URL Sandbox para testes se disponível: 'https://sandbox-api.coinmarketcap.com/...'
+    market_url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+    parameters = {
+        'symbol': symbols_param, # Usa os símbolos mapeados
+        'convert': 'USD'       # Pede a cotação em USD
+    }
+
+    market_data_response_final = {} # Resposta final no formato { coingecko_id: { usd: price } }
     try:
-        response = requests.get(market_url, timeout=10) # Timeout de 10 segundos
+        response = requests.get(market_url, headers=headers, params=parameters, timeout=10)
         response.raise_for_status() # Lança erro para 4xx/5xx
-        coins_data = response.json()
-        
-        # Formata a resposta para { id: { usd: price, image: url } }
-        for coin in coins_data:
-            market_data_response[coin['id']] = {
-                'usd': coin.get('current_price'),
-                'image': coin.get('image')
-            }
-        print(f"[Market Data API] Dados retornados da CoinGecko para {len(coins_data)} moedas.")
+        cmc_data = response.json()
+        print(f"[Market Data API] Resposta recebida da CoinMarketCap: Status {cmc_data.get('status', {}).get('error_code', 'N/A')}")
+
+
+        # --- Processamento da Resposta da CoinMarketCap ---
+        # A estrutura é diferente: { "data": { "BTC": { ... }, "ETH": { ... } }, "status": { ... } }
+        if 'data' in cmc_data and cmc_data['data']:
+            for symbol, details in cmc_data['data'].items():
+                # symbol aqui é o símbolo CMC (ex: 'BTC')
+                if symbol in original_id_map: # Verifica se temos o ID original mapeado
+                    coingecko_id = original_id_map[symbol] # Pega o ID original (ex: 'bitcoin')
+                    
+                    usd_quote = details.get('quote', {}).get('USD', {})
+                    current_price = usd_quote.get('price')
+
+                    if current_price is not None:
+                         market_data_response_final[coingecko_id] = {
+                             'usd': current_price,
+                             # 'image': None # CoinMarketCap geralmente não retorna imagem neste endpoint
+                         }
+                    else:
+                         print(f"[Market Data API WARN] Preço USD não encontrado na resposta da CMC para o símbolo {symbol} (ID {coingecko_id}).")
+                         market_data_response_final[coingecko_id] = {'usd': None} # Indica que não foi encontrado
+
+                else:
+                     print(f"[Market Data API WARN] Símbolo {symbol} retornado pela CMC não encontrado no mapeamento original_id_map.")
+
+        else:
+            # Pode haver um erro no status, mesmo com código 200
+            status_info = cmc_data.get('status', {})
+            error_code = status_info.get('error_code')
+            error_message = status_info.get('error_message', 'Erro desconhecido na resposta da API.')
+            print(f"[Market Data API ERROR] Resposta da CoinMarketCap não contém dados válidos. Status: {error_code} - {error_message}")
+            # Decide se retorna erro 500 ou objeto vazio
+            return jsonify({"error": f"Erro da API externa: {error_message}"}), 502 # Bad Gateway
+
+        print(f"[Market Data API] Dados processados para {len(market_data_response_final)} IDs.")
+
 
     except requests.exceptions.Timeout:
-        print("[Market Data API] Erro: Timeout ao conectar com CoinGecko API.")
-        return jsonify({"error": "Timeout ao buscar dados de mercado externos"}), 504 
+        print("[Market Data API] Erro: Timeout ao conectar com CoinMarketCap API.")
+        return jsonify({"error": "Timeout ao buscar dados de mercado externos"}), 504
     except requests.exceptions.RequestException as e:
-        print(f"[Market Data API] Erro ao buscar dados da CoinGecko API: {e}")
-        return jsonify({"error": "Erro ao buscar dados de mercado externos"}), 502 # Bad Gateway
+        # Trata erros específicos da CoinMarketCap se necessário (ex: 401 Unauthorized, 403 Forbidden, 429 Too Many Requests)
+        status_code = e.response.status_code if e.response is not None else 500
+        print(f"[Market Data API] Erro {status_code} ao buscar dados da CoinMarketCap API: {e}")
+        error_msg = "Erro ao buscar dados de mercado externos"
+        if status_code == 401 or status_code == 403:
+             error_msg = "Chave de API CoinMarketCap inválida ou não autorizada."
+        elif status_code == 429:
+             error_msg = "Limite de requisições da API CoinMarketCap atingido."
+        # Retorna o status code original se for um erro do cliente (4xx)
+        return jsonify({"error": error_msg}), status_code if 400 <= status_code < 500 else 502
     except Exception as e:
         print(f"[Market Data API] Erro inesperado: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": "Erro interno do servidor ao processar dados de mercado"}), 500
 
-    return jsonify(market_data_response)
+    return jsonify(market_data_response_final) # Retorna no formato esperado pelo frontend (com IDs CoinGecko)
 # ------------------------------------------------------------
 
 
